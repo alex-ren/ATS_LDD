@@ -119,6 +119,7 @@ int fat_generic_ioctl(struct inode *inode, struct file *filp,
 {
 	u32 __user *user_attr = (u32 __user *)arg;
 
+        printk (KERN_INFO "myfat: fat_generic_ioctl\n");
 	switch (cmd) {
 	case FAT_IOCTL_GET_ATTRIBUTES:
 		return fat_ioctl_get_attributes(inode, user_attr);
@@ -131,6 +132,7 @@ int fat_generic_ioctl(struct inode *inode, struct file *filp,
 
 static int fat_file_release(struct inode *inode, struct file *filp)
 {
+        printk (KERN_INFO "myfat: fat_file_release\n");
 	if ((filp->f_mode & FMODE_WRITE) &&
 	     MSDOS_SB(inode->i_sb)->options.flush) {
 		fat_flush_inodes(inode->i_sb, inode, NULL);
@@ -144,6 +146,7 @@ int fat_file_fsync(struct file *filp, struct dentry *dentry, int datasync)
 	struct inode *inode = dentry->d_inode;
 	int res, err;
 
+        printk (KERN_INFO "myfat: fat_file_fsync\n");
 	res = simple_fsync(filp, dentry, datasync);
 	err = sync_mapping_buffers(MSDOS_SB(inode->i_sb)->fat_inode->i_mapping);
 
@@ -292,6 +295,7 @@ void fat_truncate(struct inode *inode)
 int fat_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 {
 	struct inode *inode = dentry->d_inode;
+        printk (KERN_INFO "myfat: fat_getattr\n");
 	generic_fillattr(inode, stat);
 	stat->blksize = MSDOS_SB(inode->i_sb)->cluster_size;
 	return 0;
@@ -361,6 +365,7 @@ int fat_setattr(struct dentry *dentry, struct iattr *attr)
 	struct inode *inode = dentry->d_inode;
 	unsigned int ia_valid;
 	int error;
+        printk (KERN_INFO "myfat: fat_setattr\n");
 
 	/*
 	 * Expand the file. Since inode_setattr() updates ->i_size

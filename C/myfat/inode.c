@@ -122,23 +122,27 @@ static int fat_get_block(struct inode *inode, sector_t iblock,
 
 static int fat_writepage(struct page *page, struct writeback_control *wbc)
 {
+        printk (KERN_INFO "myfat: fat_writepage\n");
 	return block_write_full_page(page, fat_get_block, wbc);
 }
 
 static int fat_writepages(struct address_space *mapping,
 			  struct writeback_control *wbc)
 {
+        printk (KERN_INFO "myfat: fat_writepages\n");
 	return mpage_writepages(mapping, wbc, fat_get_block);
 }
 
 static int fat_readpage(struct file *file, struct page *page)
 {
+        printk (KERN_INFO "myfat: fat_readpage\n");
 	return mpage_readpage(page, fat_get_block);
 }
 
 static int fat_readpages(struct file *file, struct address_space *mapping,
 			 struct list_head *pages, unsigned nr_pages)
 {
+        printk (KERN_INFO "myfat: fat_readpages\n");
 	return mpage_readpages(mapping, pages, nr_pages, fat_get_block);
 }
 
@@ -146,6 +150,7 @@ static int fat_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata)
 {
+        printk (KERN_INFO "myfat: fat_write_begin\n");
 	*pagep = NULL;
 	return cont_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
 				fat_get_block,
@@ -158,6 +163,7 @@ static int fat_write_end(struct file *file, struct address_space *mapping,
 {
 	struct inode *inode = mapping->host;
 	int err;
+        printk (KERN_INFO "myfat: fat_write_end\n");
 	err = generic_write_end(file, mapping, pos, len, copied, pagep, fsdata);
 	if (!(err < 0) && !(MSDOS_I(inode)->i_attrs & ATTR_ARCH)) {
 		inode->i_mtime = inode->i_ctime = CURRENT_TIME_SEC;
@@ -173,6 +179,7 @@ static ssize_t fat_direct_IO(int rw, struct kiocb *iocb,
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
+        printk (KERN_INFO "myfat: fat_direct_IO\n");
 
 	if (rw == WRITE) {
 		/*
@@ -201,6 +208,7 @@ static sector_t _fat_bmap(struct address_space *mapping, sector_t block)
 {
 	sector_t blocknr;
 
+        printk (KERN_INFO "myfat: _fat_bmap\n");
 	/* fat_get_cluster() assumes the requested blocknr isn't truncated. */
 	down_read(&mapping->host->i_alloc_sem);
 	blocknr = generic_block_bmap(mapping, block, fat_get_block);

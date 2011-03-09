@@ -28,6 +28,7 @@ static int msdos_format_name(const unsigned char *name, int len,
 	unsigned char *walk;
 	unsigned char c;
 	int space;
+        // printk (KERN_INFO "myfat: msdos_format_name\n");
 
 	if (name[0] == '.') {	/* dotfile because . and .. already done */
 		if (opts->dotsOK) {
@@ -123,6 +124,7 @@ static int msdos_find(struct inode *dir, const unsigned char *name, int len,
 	unsigned char msdos_name[MSDOS_NAME];
 	int err;
 
+        // printk (KERN_INFO "myfat: msdos_find\n");
 	err = msdos_format_name(name, len, msdos_name, &sbi->options);
 	if (err)
 		return -ENOENT;
@@ -154,6 +156,7 @@ static int msdos_hash(struct dentry *dentry, struct qstr *qstr)
 	unsigned char msdos_name[MSDOS_NAME];
 	int error;
 
+        // printk (KERN_INFO "myfat: msdos_hash\n");
 	error = msdos_format_name(qstr->name, qstr->len, msdos_name, options);
 	if (!error)
 		qstr->hash = full_name_hash(msdos_name, MSDOS_NAME);
@@ -169,6 +172,7 @@ static int msdos_cmp(struct dentry *dentry, struct qstr *a, struct qstr *b)
 	struct fat_mount_options *options = &MSDOS_SB(dentry->d_sb)->options;
 	unsigned char a_msdos_name[MSDOS_NAME], b_msdos_name[MSDOS_NAME];
 	int error;
+        // printk (KERN_INFO "myfat: msdos_cmp\n");
 
 	error = msdos_format_name(a->name, a->len, a_msdos_name, options);
 	if (error)
@@ -204,6 +208,7 @@ static struct dentry *msdos_lookup(struct inode *dir, struct dentry *dentry,
 	struct fat_slot_info sinfo;
 	struct inode *inode;
 	int err;
+        printk (KERN_INFO "myfat: msdos_lookup\n");
 
 	lock_super(sb);
 
@@ -244,6 +249,7 @@ static int msdos_add_entry(struct inode *dir, const unsigned char *name,
 	struct msdos_dir_entry de;
 	__le16 time, date;
 	int err;
+        // printk (KERN_INFO "myfat: msdos_add_entry\n");
 
 	memcpy(de.name, name, MSDOS_NAME);
 	de.attr = is_dir ? ATTR_DIR : ATTR_ARCH;
@@ -283,6 +289,7 @@ static int msdos_create(struct inode *dir, struct dentry *dentry, int mode,
 	struct timespec ts;
 	unsigned char msdos_name[MSDOS_NAME];
 	int err, is_hid;
+        printk (KERN_INFO "myfat: msdos_create\n");
 
 	lock_super(sb);
 
@@ -326,6 +333,7 @@ static int msdos_rmdir(struct inode *dir, struct dentry *dentry)
 	struct inode *inode = dentry->d_inode;
 	struct fat_slot_info sinfo;
 	int err;
+        printk (KERN_INFO "myfat: msdos_rmdir\n");
 
 	lock_super(sb);
 	/*
@@ -364,6 +372,7 @@ static int msdos_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	unsigned char msdos_name[MSDOS_NAME];
 	struct timespec ts;
 	int err, is_hid, cluster;
+        printk (KERN_INFO "myfat: msdos_mkdir\n");
 
 	lock_super(sb);
 
@@ -421,6 +430,7 @@ static int msdos_unlink(struct inode *dir, struct dentry *dentry)
 	struct super_block *sb= inode->i_sb;
 	struct fat_slot_info sinfo;
 	int err;
+        printk (KERN_INFO "myfat: msdos_unlink\n");
 
 	lock_super(sb);
 	err = msdos_find(dir, dentry->d_name.name, dentry->d_name.len, &sinfo);
@@ -453,6 +463,7 @@ static int do_msdos_rename(struct inode *old_dir, unsigned char *old_name,
 	struct timespec ts;
 	loff_t dotdot_i_pos, new_i_pos;
 	int err, old_attrs, is_dir, update_dotdot, corrupt = 0;
+        // printk (KERN_INFO "myfat: do_msdos_rename\n");
 
 	old_sinfo.bh = sinfo.bh = dotdot_bh = NULL;
 	old_inode = old_dentry->d_inode;
@@ -621,6 +632,7 @@ static int msdos_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct super_block *sb = old_dir->i_sb;
 	unsigned char old_msdos_name[MSDOS_NAME], new_msdos_name[MSDOS_NAME];
 	int err, is_hid;
+        printk (KERN_INFO "myfat: msdos_rename\n");
 
 	lock_super(sb);
 
@@ -661,6 +673,7 @@ static const struct inode_operations msdos_dir_inode_operations = {
 static int msdos_fill_super(struct super_block *sb, void *data, int silent)
 {
 	int res;
+        printk (KERN_INFO "myfat: msdos_fill_super\n");
 
 	res = fat_fill_super(sb, data, silent, &msdos_dir_inode_operations, 0);
 	if (res)
@@ -675,13 +688,14 @@ static int msdos_get_sb(struct file_system_type *fs_type,
 			int flags, const char *dev_name,
 			void *data, struct vfsmount *mnt)
 {
+        printk (KERN_INFO "myfat: msdos_get_sb, dev is %s\n", dev_name);
 	return get_sb_bdev(fs_type, flags, dev_name, data, msdos_fill_super,
 			   mnt);
 }
 
 static struct file_system_type msdos_fs_type = {
 	.owner		= THIS_MODULE,
-	.name		= "msdos",
+	.name		= "mymsdos",
 	.get_sb		= msdos_get_sb,
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
@@ -689,11 +703,13 @@ static struct file_system_type msdos_fs_type = {
 
 static int __init init_msdos_fs(void)
 {
+        printk (KERN_INFO "myfat: init_msdos_fs\n");
 	return register_filesystem(&msdos_fs_type);
 }
 
 static void __exit exit_msdos_fs(void)
 {
+        printk (KERN_INFO "myfat: exit_msdos_fs\n");
 	unregister_filesystem(&msdos_fs_type);
 }
 
