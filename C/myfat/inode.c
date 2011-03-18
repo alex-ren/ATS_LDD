@@ -217,12 +217,18 @@ static sector_t _fat_bmap(struct address_space *mapping, sector_t block)
 	return blocknr;
 }
 
+void my_block_sync_page(struct page *page)
+{
+    printk (KERN_INFO "myfat: my_block_sync_page\n");
+    return block_sync_page(page);
+}
+
 static const struct address_space_operations fat_aops = {
 	.readpage	= fat_readpage,
 	.readpages	= fat_readpages,
 	.writepage	= fat_writepage,
 	.writepages	= fat_writepages,
-	.sync_page	= block_sync_page,
+	.sync_page	= my_block_sync_page,
 	.write_begin	= fat_write_begin,
 	.write_end	= fat_write_end,
 	.direct_IO	= fat_direct_IO,
@@ -435,6 +441,8 @@ EXPORT_SYMBOL_GPL(fat_build_inode);
 
 static void fat_delete_inode(struct inode *inode)
 {
+        printk (KERN_INFO "myfat: fat_delete_inode\n");
+
 	truncate_inode_pages(&inode->i_data, 0);
 	inode->i_size = 0;
 	fat_truncate(inode);
@@ -443,12 +451,16 @@ static void fat_delete_inode(struct inode *inode)
 
 static void fat_clear_inode(struct inode *inode)
 {
+        printk (KERN_INFO "myfat: fat_clear_inode\n");
+
 	fat_cache_inval_inode(inode);
 	fat_detach(inode);
 }
 
 static void fat_write_super(struct super_block *sb)
 {
+        printk (KERN_INFO "myfat: fat_write_super\n");
+
 	lock_super(sb);
 	sb->s_dirt = 0;
 
@@ -460,6 +472,8 @@ static void fat_write_super(struct super_block *sb)
 static int fat_sync_fs(struct super_block *sb, int wait)
 {
 	int err = 0;
+
+        printk (KERN_INFO "myfat: fat_sync_fs\n");
 
 	if (sb->s_dirt) {
 		lock_super(sb);
@@ -474,6 +488,7 @@ static int fat_sync_fs(struct super_block *sb, int wait)
 static void fat_put_super(struct super_block *sb)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
+        printk (KERN_INFO "myfat: fat_put_super\n");
 
 	lock_kernel();
 
@@ -499,6 +514,7 @@ static struct kmem_cache *fat_inode_cachep;
 static struct inode *fat_alloc_inode(struct super_block *sb)
 {
 	struct msdos_inode_info *ei;
+        printk (KERN_INFO "myfat: fat_alloc_inode\n");
 	ei = kmem_cache_alloc(fat_inode_cachep, GFP_NOFS);
 	if (!ei)
 		return NULL;
@@ -507,6 +523,7 @@ static struct inode *fat_alloc_inode(struct super_block *sb)
 
 static void fat_destroy_inode(struct inode *inode)
 {
+        printk (KERN_INFO "myfat: fat_destroy_inode\n");
 	kmem_cache_free(fat_inode_cachep, MSDOS_I(inode));
 }
 
@@ -542,6 +559,9 @@ static void __exit fat_destroy_inodecache(void)
 static int fat_remount(struct super_block *sb, int *flags, char *data)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
+
+        printk (KERN_INFO "myfat: fat_remount\n");
+
 	*flags |= MS_NODIRATIME | (sbi->options.isvfat ? 0 : MS_NOATIME);
 	return 0;
 }
@@ -551,6 +571,8 @@ static int fat_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct super_block *sb = dentry->d_sb;
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 	u64 id = huge_encode_dev(sb->s_bdev->bd_dev);
+
+        printk (KERN_INFO "myfat: fat_statfs\n");
 
 	/* If the count of free cluster is still unknown, counts it here. */
 	if (sbi->free_clusters == -1 || !sbi->free_clus_valid) {
@@ -593,6 +615,8 @@ static int fat_write_inode(struct inode *inode, int wait)
 	struct msdos_dir_entry *raw_entry;
 	loff_t i_pos;
 	int err;
+
+        printk (KERN_INFO "myfat: fat_write_inode\n");
 
 	if (inode->i_ino == MSDOS_ROOT_INO)
 		return 0;
@@ -686,6 +710,8 @@ static struct dentry *fat_fh_to_dentry(struct super_block *sb,
 	struct dentry *result;
 	u32 *fh = fid->raw;
 
+        printk (KERN_INFO "myfat: fat_fh_to_dentry\n");
+
 	if (fh_len < 5 || fh_type != 3)
 		return NULL;
 
@@ -741,6 +767,8 @@ fat_encode_fh(struct dentry *de, __u32 *fh, int *lenp, int connectable)
 	struct inode *inode =  de->d_inode;
 	u32 ipos_h, ipos_m, ipos_l;
 
+        printk (KERN_INFO "myfat: fat_encode_fh\n");
+
 	if (len < 5)
 		return 255; /* no room */
 
@@ -767,6 +795,8 @@ static struct dentry *fat_get_parent(struct dentry *child)
 	struct dentry *parent;
 	struct inode *inode;
 	int err;
+
+        printk (KERN_INFO "myfat: fat_get_parent\n");
 
 	lock_super(sb);
 
@@ -798,6 +828,8 @@ static int fat_show_options(struct seq_file *m, struct vfsmount *mnt)
 	struct msdos_sb_info *sbi = MSDOS_SB(mnt->mnt_sb);
 	struct fat_mount_options *opts = &sbi->options;
 	int isvfat = opts->isvfat;
+
+        printk (KERN_INFO "myfat: fat_show_options\n");
 
 	if (opts->fs_uid != 0)
 		seq_printf(m, ",uid=%u", opts->fs_uid);

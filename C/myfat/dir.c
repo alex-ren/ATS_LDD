@@ -681,6 +681,13 @@ out:
 static int fat_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
 	struct inode *inode = filp->f_path.dentry->d_inode;
+
+        char szBuffer[20];
+        struct dentry *dentry = filp->f_path.dentry;
+        int len = min(dentry->d_name.len, 19);
+        memset(szBuffer, 0, 20);
+        __memcpy(szBuffer, dentry->d_name.name, len);
+        printk (KERN_INFO "myfat: fat_readdir, dir is %s\n", szBuffer);
 	return __fat_readdir(inode, filp, dirent, filldir, 0, 0);
 }
 
@@ -763,6 +770,7 @@ static int fat_dir_ioctl(struct inode *inode, struct file *filp,
 {
 	struct __fat_dirent __user *d1 = (struct __fat_dirent __user *)arg;
 	int short_only, both;
+        printk (KERN_INFO "myfat: fat_dir_ioctl\n");
 
 	switch (cmd) {
 	case VFAT_IOCTL_READDIR_SHORT:
@@ -832,9 +840,18 @@ static long fat_compat_dir_ioctl(struct file *filp, unsigned cmd,
 }
 #endif /* CONFIG_COMPAT */
 
+/* defined in file.c */
+loff_t my_generic_file_llseek(struct file *file, loff_t offset, int origin);
+
+ssize_t my_generic_read_dir(struct file *filp, char __user *buf, size_t siz, loff_t *ppos)
+{
+    printk (KERN_INFO "myfat: my_generic_read_dir\n");
+    return generic_read_dir (filp, buf, siz, ppos);
+}
+
 const struct file_operations fat_dir_operations = {
-	.llseek		= generic_file_llseek,
-	.read		= generic_read_dir,
+	.llseek		= my_generic_file_llseek,
+	.read		= my_generic_read_dir,
 	.readdir	= fat_readdir,
 	.ioctl		= fat_dir_ioctl,
 #ifdef CONFIG_COMPAT

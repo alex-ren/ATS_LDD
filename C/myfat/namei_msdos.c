@@ -156,7 +156,7 @@ static int msdos_hash(struct dentry *dentry, struct qstr *qstr)
 	unsigned char msdos_name[MSDOS_NAME];
 	int error;
 
-        // printk (KERN_INFO "myfat: msdos_hash\n");
+        printk (KERN_INFO "myfat: msdos_hash\n");
 	error = msdos_format_name(qstr->name, qstr->len, msdos_name, options);
 	if (!error)
 		qstr->hash = full_name_hash(msdos_name, MSDOS_NAME);
@@ -172,7 +172,7 @@ static int msdos_cmp(struct dentry *dentry, struct qstr *a, struct qstr *b)
 	struct fat_mount_options *options = &MSDOS_SB(dentry->d_sb)->options;
 	unsigned char a_msdos_name[MSDOS_NAME], b_msdos_name[MSDOS_NAME];
 	int error;
-        // printk (KERN_INFO "myfat: msdos_cmp\n");
+        printk (KERN_INFO "myfat: msdos_cmp\n");
 
 	error = msdos_format_name(a->name, a->len, a_msdos_name, options);
 	if (error)
@@ -208,7 +208,11 @@ static struct dentry *msdos_lookup(struct inode *dir, struct dentry *dentry,
 	struct fat_slot_info sinfo;
 	struct inode *inode;
 	int err;
-        printk (KERN_INFO "myfat: msdos_lookup\n");
+        char szBuffer[20];
+        int len = min(dentry->d_name.len, 19);
+        memset(szBuffer, 0, 20);
+        __memcpy(szBuffer, dentry->d_name.name, len);
+        printk (KERN_INFO "myfat: msdos_lookup, dir is %s\n", szBuffer);
 
 	lock_super(sb);
 

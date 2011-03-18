@@ -153,18 +153,77 @@ int fat_file_fsync(struct file *filp, struct dentry *dentry, int datasync)
 	return res ? res : err;
 }
 
+loff_t my_generic_file_llseek(struct file *file, loff_t offset, int origin)
+{
+    printk (KERN_INFO "myfat: my_generic_file_llseek\n");
+    return generic_file_llseek (file, offset, origin);
+}
+
+ssize_t my_do_sync_read(struct file *filp, char __user *buf, size_t len, loff_t *ppos)
+{
+    static int num = 5;
+    char a[] = {'a', 'b'};
+
+    printk (KERN_INFO "myfat: my_do_sync_read\n");
+    // return do_sync_read(filp, buf, len, ppos);
+    if (num > 0)
+    {
+        --num;
+        copy_to_user(buf, (void*)a, 2);
+        return 2;
+    }
+    else
+        return 0;
+}
+
+ssize_t my_do_sync_write(struct file *filp, const char __user *buf, size_t len, loff_t *ppos)
+{
+    printk (KERN_INFO "myfat: my_do_sync_write\n");
+    return do_sync_write(filp, buf, len, ppos);
+}
+
+ssize_t
+my_generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
+		unsigned long nr_segs, loff_t pos)
+{
+    printk (KERN_INFO "myfat: my_generic_file_aio_read\n");
+    return generic_file_aio_read(iocb, iov, nr_segs, pos);
+}
+
+
+ssize_t my_generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
+		unsigned long nr_segs, loff_t pos)
+{
+    printk (KERN_INFO "myfat: my_generic_file_aio_write\n");
+    return generic_file_aio_write(iocb, iov, nr_segs, pos);
+}
+
+
+int my_generic_file_mmap(struct file * file, struct vm_area_struct * vma)
+{
+    printk (KERN_INFO "myfat: my_generic_file_mmap\n");
+    return generic_file_mmap(file, vma);
+}
+
+ssize_t my_generic_file_splice_read(struct file *in, loff_t *ppos,
+				 struct pipe_inode_info *pipe, size_t len,
+				 unsigned int flags)
+{
+    printk (KERN_INFO "myfat: my_generic_file_splice_read\n");
+    return generic_file_splice_read(in, ppos, pipe, len, flags);
+}
 
 const struct file_operations fat_file_operations = {
-	.llseek		= generic_file_llseek,
-	.read		= do_sync_read,
-	.write		= do_sync_write,
-	.aio_read	= generic_file_aio_read,
-	.aio_write	= generic_file_aio_write,
-	.mmap		= generic_file_mmap,
+	.llseek		= my_generic_file_llseek,
+	.read		= my_do_sync_read,
+	.write		= my_do_sync_write,
+	.aio_read	= my_generic_file_aio_read,
+	.aio_write	= my_generic_file_aio_write,
+	.mmap		= my_generic_file_mmap,
 	.release	= fat_file_release,
 	.ioctl		= fat_generic_ioctl,
 	.fsync		= fat_file_fsync,
-	.splice_read	= generic_file_splice_read,
+	.splice_read	= my_generic_file_splice_read,
 };
 
 static int fat_cont_expand(struct inode *inode, loff_t size)
@@ -278,6 +337,7 @@ void fat_truncate(struct inode *inode)
 	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
 	const unsigned int cluster_size = sbi->cluster_size;
 	int nr_clusters;
+        printk (KERN_INFO "myfat: fat_truncate\n");
 
 	/*
 	 * This protects against truncating a file bigger than it was then
@@ -295,7 +355,9 @@ void fat_truncate(struct inode *inode)
 int fat_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 {
 	struct inode *inode = dentry->d_inode;
+
         printk (KERN_INFO "myfat: fat_getattr\n");
+
 	generic_fillattr(inode, stat);
 	stat->blksize = MSDOS_SB(inode->i_sb)->cluster_size;
 	return 0;
@@ -365,6 +427,7 @@ int fat_setattr(struct dentry *dentry, struct iattr *attr)
 	struct inode *inode = dentry->d_inode;
 	unsigned int ia_valid;
 	int error;
+
         printk (KERN_INFO "myfat: fat_setattr\n");
 
 	/*

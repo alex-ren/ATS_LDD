@@ -195,6 +195,7 @@ static inline unsigned char fat_checksum(const __u8 *name)
 
 static inline sector_t fat_clus_to_blknr(struct msdos_sb_info *sbi, int clus)
 {
+        printk (KERN_INFO "myfat: fat_clus_to_blknr\n");
 	return ((sector_t)clus - FAT_START_ENT) * sbi->sec_per_clus
 		+ sbi->data_start;
 }
