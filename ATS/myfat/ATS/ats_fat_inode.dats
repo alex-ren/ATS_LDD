@@ -1,0 +1,23 @@
+//
+// Author: Zhiqiang Ren (aren AT cs DOT bu DOT edu)
+// Time: March 17th., 2011
+//
+/* ****** ****** */
+
+#define ATS_DYNLOADFLAG 0
+
+
+(* This must be staloaded first *)
+staload "myheader.sats"
+
+(* ***** ***** ***** *)
+staload "ats_fat_inode.sats"
+
+implement foo (i) = i + 1
+
+(* fun new_inode (sb: super_block): inode = "ats_new_node" *)
+// implement new_inode (sb) = new_node_impl (sb)
+
+
+
+

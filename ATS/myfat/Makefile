@@ -37,12 +37,14 @@ ifneq ($(KERNELRELEASE),)
 # call from kernel build system
 # Kernel modules
 obj-m += ats_fat.o
-obj-m += ats_vfat.o
+# obj-m += ats_vfat.o
 obj-m += ats_msdos.o
 
-ats_fat-objs := cache.o dir.o fatent.o file.o inode.o misc.o ats_inode_dats.o
-ats_vfat-objs := namei_vfat.o
-ats_msdos-objs := namei_msdos.o
+# ats_fat-objs := cache.o dir.o fatent.o file.o inode.o misc.o ats_sb_mgr.o
+ats_fat-objs := sb_mgr.o ats_fat_inode_dats.o fat_inode.o fat_entry.o \
+               fat_dir.o fat_cache.o fat_misc.o
+# ats_vfat-objs := namei_vfat.o
+ats_msdos-objs := namei_msdos.o msdos_inode.o msdos_dentry.o 
 else
 
 KERNELDIR ?= /lib/modules/$(KVERS)/build
@@ -56,11 +58,17 @@ endif
 ######
 
 
-ats_fat: ats_inode_dats.c
+# ats_fat: ats_inode_dats.c
+# 
+ats_inode_dats.o: ats_fat_inode_dats.c
 
-ats_inode_dats.c: ATS/ats_inode.dats ATS/ats_inode.sats
+.PHONY: ats
+
+ats: ats_fat_inode_dats.c
+
+ats_fat_inode_dats.c: ATS/ats_fat_inode.dats ATS/ats_fat_inode.sats
 	$(ATSOPT) -IATS ATS -o $@ -d $<
-
+# 
 
 ######
 
