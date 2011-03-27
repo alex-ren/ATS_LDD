@@ -1,3 +1,9 @@
+/*
+* File for handling entry in FAT
+*
+*
+*/
+
 #ifndef ATS_FAT_ENTRY_H
 #define ATS_FAT_ENTRY_H
 
@@ -37,6 +43,14 @@ int fat32_ent_get(struct fat_entry *fatent);
 int fat32_ent_next(struct fat_entry *fatent);
 
 void fat32_ent_put(struct fat_entry *fatent, int new);
+
+/*
+* Desc: get the no. of the next entry in the link list of FAT
+* Info: can return FAT_ENT_EOF and FAT_ENT_FREE
+* todo into ATS, the special kind of return value
+*
+*/
+int fatent_next(struct inode *inode, int curent, int *nxtent);
 
 #endif
 

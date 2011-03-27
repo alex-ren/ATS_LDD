@@ -658,7 +658,8 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	if (!fat_inode)
 		goto out_fail;
 	MSDOS_I(fat_inode)->i_pos = 0;
-	sbi->fat_inode = fat_inode;  // what is the fat_inode for?
+	sbi->fat_inode = fat_inode;  // what is the fat_inode for? seems to have sth.
+                                    // to do with entry. But I don't use it.
 	root_inode = new_inode(sb);
 	if (!root_inode)
 		goto out_fail;

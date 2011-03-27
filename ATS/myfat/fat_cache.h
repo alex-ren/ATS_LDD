@@ -19,5 +19,19 @@
 */
 extern int fat_get_cluster(struct inode *, int cluster, int *fclus, int *dclus);
 
+/*
+* Desc: transform sector (inside a file) to no. of sector in the volume
+* Para:
+*   In:
+*   sector: no. of sector (inside a file)
+*   Out:
+*   phys: no. of cluster in volume
+*   mapped_blocks: of no use now
+*   create: of no use now
+*
+*/
+int fat_bmap(struct inode *inode, sector_t sector, sector_t *phys,
+	     unsigned long *mapped_blocks, int create);
+
 #endif
 

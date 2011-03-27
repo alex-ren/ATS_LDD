@@ -4,37 +4,17 @@
 #include "fat_entry.h"
 #include "fat_misc.h"
 
-
-static inline int getNextEntry(struct inode *inode, int curent, int *nxtent)
+// #include <linux/msdos_fs.h>
+/*
+* Desc: transform no. of entry in FAT (or the no. of cluster in data region)
+*   to the number of sectors in the volume
+*
+*/
+static inline sector_t fat_clus_to_blknr(struct fat_sb_info *sbi, int clus)
 {
-    struct super_block *sb = inode->i_sb;
-    struct fat_entry ent;
-
-    int offset = 0;
-    sector_t blocknr = 0;
-
-    int ret = 0;
-
-    fatent_init (&ent);
-    fatent_set_entry(&ent, curent);  // set the no. of entry
-    fat_ent_blocknr(sb, curent, &offset, &blocknr);  // get the block no. and offset of dclus
-    
-    if (fat_ent_bread(sb, &ent, offset, blocknr))
-    {
-        ret = -EIO;
-        goto out;
-    }
-
-    *nxtent = fat32_ent_get(&ent);
-    if (FAT_ENT_EOF == *nxtent)
-    {
-        ret = -EIO;
-        goto out;
-    }
-
-out:
-    fatent_brelse(&ent);
-    return ret;
+        printk (KERN_INFO "myfat: fat_clus_to_blknr\n");
+	return ((sector_t)clus - FAT_START_ENT) * sbi->sec_per_clus
+		+ sbi->data_start;
 }
 
 /*
@@ -46,7 +26,7 @@ out:
 *   out:
 *   fclus: no. of cluster in the file we finally work on (most of time, it
 *       is equal to cluster, could be < cluster if file is not long enough)
-*   
+*  Info: can return FAT_ENT_EOF 
 */
 int fat_get_cluster(struct inode *inode, int cluster, int *fclus, int *dclus)
 {
@@ -76,12 +56,24 @@ int fat_get_cluster(struct inode *inode, int cluster, int *fclus, int *dclus)
         }
 
         // dclus is equivalent to entry
-        if (getNextEntry(inode, *dclus, &nclus))
+        nr = fatent_next(inode, *dclus, &nclus);
+        if (nr < 0)
         {
-            // end of file or error, return
-            nr = 0;
             goto out;
         }
+        else if (FAT_ENT_FREE == nr)
+        {
+            fat_fs_error(sb, "%s: invalid cluster chain"
+                        "(i_pos %lld)", __func__,
+                        MSDOS_I(inode)->i_pos);
+            nr = -EIO;
+            goto out;
+        }
+        else if (FAT_ENT_EOF == nr)
+        {
+            goto out;
+        }  // FAT_ENT_BAD has been handled underneath
+
         *fclus = *fclus + 1;
         *dclus = nclus;
     }
@@ -91,3 +83,93 @@ out:
     return nr;
 }
 
+/*
+* Desc: transform the cluster in file to cluster in the data region
+*
+*/
+static int fat_bmap_cluster(struct inode *inode, int cluster)
+{
+	struct super_block *sb = inode->i_sb;
+	int ret, fclus, dclus;
+
+	if (MSDOS_I(inode)->i_start == 0)
+		return 0;
+
+	ret = fat_get_cluster(inode, cluster, &fclus, &dclus);
+	if (ret < 0)
+		return ret;
+	else if (ret == FAT_ENT_EOF) {
+		fat_fs_error(sb, "%s: request beyond EOF (i_pos %lld)",
+			     __func__, MSDOS_I(inode)->i_pos);
+		return -EIO;
+	}
+	return dclus;
+}
+
+/*
+* Desc: transform sector (inside a file) to 
+* Para:
+*   In:
+*   sector: no. of sector (inside a file)
+*   Out:
+*   phys: no. of cluster in volume
+*   mapped_blocks: of no use now
+*   create: of no use now
+*
+*/
+int fat_bmap(struct inode *inode, sector_t sector, sector_t *phys,
+	     unsigned long *mapped_blocks, int create)
+{
+    struct super_block *sb = inode->i_sb;
+    struct fat_sb_info *sbi = MSDOS_SB(sb);
+    const unsigned long blocksize = sb->s_blocksize;
+    const unsigned char blocksize_bits = sb->s_blocksize_bits;
+    sector_t last_block;
+    int cluster, offset;
+    
+    *phys = 0;
+    *mapped_blocks = 0;
+    if ((sbi->fat_bits != 32) && (inode->i_ino == MSDOS_ROOT_INO)) {
+        // We only handle FAT 32
+    
+    	// if (sector < (sbi->dir_entries >> sbi->dir_per_block_bits)) {
+    	// 	*phys = sector + sbi->dir_start;
+    	// 	*mapped_blocks = 1;
+    	// }
+    	// return 0;
+    }
+    
+    last_block = (i_size_read(inode) + (blocksize - 1)) >> blocksize_bits;
+    if (sector >= last_block) {
+    	if (!create)
+    		return 0;
+    
+    	/*
+    	 * ->mmu_private can access on only allocation path.
+    	 * (caller must hold ->i_mutex)
+    	 */
+    	// last_block = (MSDOS_I(inode)->mmu_private + (blocksize - 1))
+    	// 	>> blocksize_bits;
+    	// if (sector >= last_block)
+    	// 	return 0;
+        // todo what's this?
+        return 0;  // add by rzq
+    }
+    
+    // no. of cluster in a file
+    cluster = sector >> (sbi->cluster_bits - sb->s_blocksize_bits);
+    // offset in a block
+    offset  = sector & (sbi->sec_per_clus - 1);
+    // cluster: no. of cluster in the data region
+    cluster = fat_bmap_cluster(inode, cluster);
+    if (cluster < 0)
+    	return cluster;
+    else if (cluster) {
+        // no. of sectors in the volume
+    	*phys = fat_clus_to_blknr(sbi, cluster) + offset;
+    	*mapped_blocks = sbi->sec_per_clus - offset;
+    	if (*mapped_blocks > last_block - sector)
+    		*mapped_blocks = last_block - sector;
+    }
+    return 0;
+}

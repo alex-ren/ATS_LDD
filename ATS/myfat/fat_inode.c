@@ -20,6 +20,7 @@
 #include "fat_cache.h"
 #include "fat_dir.h"
 
+
 static struct kmem_cache *fat_inode_cachep;
 
 static struct inode *fat_alloc_inode(struct super_block *sb)
@@ -38,6 +39,86 @@ static void fat_destroy_inode(struct inode *inode)
 	kmem_cache_free(fat_inode_cachep, MSDOS_I(inode));
 }
 
+// by rzq: for supporting /proc file system
+static int fat_show_options(struct seq_file *m, struct vfsmount *mnt)
+{
+	struct fat_sb_info *sbi = MSDOS_SB(mnt->mnt_sb);
+	struct fat_mount_options *opts = &sbi->options;
+	int isvfat = opts->isvfat;
+
+        printk (KERN_INFO "myfat: fat_show_options\n");
+
+	if (opts->fs_uid != 0)
+		seq_printf(m, ",uid=%u", opts->fs_uid);
+	if (opts->fs_gid != 0)
+		seq_printf(m, ",gid=%u", opts->fs_gid);
+	seq_printf(m, ",fmask=%04o", opts->fs_fmask);
+	seq_printf(m, ",dmask=%04o", opts->fs_dmask);
+	if (opts->allow_utime)
+		seq_printf(m, ",allow_utime=%04o", opts->allow_utime);
+	if (sbi->nls_disk)
+		seq_printf(m, ",codepage=%s", sbi->nls_disk->charset);
+	if (isvfat) {
+		if (sbi->nls_io)
+			seq_printf(m, ",iocharset=%s", sbi->nls_io->charset);
+
+		switch (opts->shortname) {
+		case VFAT_SFN_DISPLAY_WIN95 | VFAT_SFN_CREATE_WIN95:
+			seq_puts(m, ",shortname=win95");
+			break;
+		case VFAT_SFN_DISPLAY_WINNT | VFAT_SFN_CREATE_WINNT:
+			seq_puts(m, ",shortname=winnt");
+			break;
+		case VFAT_SFN_DISPLAY_WINNT | VFAT_SFN_CREATE_WIN95:
+			seq_puts(m, ",shortname=mixed");
+			break;
+		case VFAT_SFN_DISPLAY_LOWER | VFAT_SFN_CREATE_WIN95:
+			seq_puts(m, ",shortname=lower");
+			break;
+		default:
+			seq_puts(m, ",shortname=unknown");
+			break;
+		}
+	}
+	if (opts->name_check != 'n')
+		seq_printf(m, ",check=%c", opts->name_check);
+	if (opts->usefree)
+		seq_puts(m, ",usefree");
+	if (opts->quiet)
+		seq_puts(m, ",quiet");
+	if (opts->showexec)
+		seq_puts(m, ",showexec");
+	if (opts->sys_immutable)
+		seq_puts(m, ",sys_immutable");
+	if (!isvfat) {
+		if (opts->dotsOK)
+			seq_puts(m, ",dotsOK=yes");
+		if (opts->nocase)
+			seq_puts(m, ",nocase");
+	} else {
+		if (opts->utf8)
+			seq_puts(m, ",utf8");
+		if (opts->unicode_xlate)
+			seq_puts(m, ",uni_xlate");
+		if (!opts->numtail)
+			seq_puts(m, ",nonumtail");
+		if (opts->rodir)
+			seq_puts(m, ",rodir");
+	}
+	if (opts->flush)
+		seq_puts(m, ",flush");
+	if (opts->tz_utc)
+		seq_puts(m, ",tz=UTC");
+	if (opts->errors == FAT_ERRORS_CONT)
+		seq_puts(m, ",errors=continue");
+	else if (opts->errors == FAT_ERRORS_PANIC)
+		seq_puts(m, ",errors=panic");
+	else
+		seq_puts(m, ",errors=remount-ro");
+
+	return 0;
+}
+
 const struct super_operations fat_sops = {
 	.alloc_inode	= fat_alloc_inode,
 	.destroy_inode	= fat_destroy_inode,
@@ -50,7 +131,7 @@ const struct super_operations fat_sops = {
 	.clear_inode	= 0,  // fat_clear_inode,    // todo
 	.remount_fs	= 0,  // fat_remount,        // todo
 
-	.show_options	= 0,  // fat_show_options,   // todo
+	.show_options	= fat_show_options,
 };
 
 const struct export_operations fat_export_ops = {
@@ -59,13 +140,34 @@ const struct export_operations fat_export_ops = {
 	.get_parent	= 0,  //  fat_get_parent,  // todo
 };
 
+/*
+* Desc: Return the size of a directory file in bytes
+*
+*/
+static int fat_calc_dir_size(struct inode *inode)
+{
+	struct fat_sb_info *sbi = MSDOS_SB(inode->i_sb);
+	int ret, fclus, dclus;
+
+	inode->i_size = 0;
+	if (MSDOS_I(inode)->i_start == 0)
+		return 0;
+
+	ret = fat_get_cluster(inode, FAT_ENT_EOF, &fclus, &dclus);
+	if (ret < 0)
+		return ret;
+	inode->i_size = (fclus + 1) << sbi->cluster_bits;
+
+	return 0;
+}
+
 // root the info for root directory from disk and store it in inode
 // Return Value: -1 : error
 int fat_read_root(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
 	struct fat_sb_info *sbi = MSDOS_SB(sb);
-	int error;
+	int error = 0;
 
 	MSDOS_I(inode)->i_pos = 0;
 	inode->i_uid = sbi->options.fs_uid;
@@ -78,7 +180,7 @@ int fat_read_root(struct inode *inode)
 	if (sbi->fat_bits == 32) {
 		MSDOS_I(inode)->i_start = sbi->root_cluster;
                 // the size of the file for Root Dir
-		// error = fat_calc_dir_size(inode);  // todo
+		error = fat_calc_dir_size(inode);
 		if (error < 0)
 			return error;
 	} else {
@@ -96,7 +198,7 @@ int fat_read_root(struct inode *inode)
 	fat_save_attrs(inode, ATTR_DIR);  // the is a directory
 	inode->i_mtime.tv_sec = inode->i_atime.tv_sec = inode->i_ctime.tv_sec = 0;
 	inode->i_mtime.tv_nsec = inode->i_atime.tv_nsec = inode->i_ctime.tv_nsec = 0;
-	// inode->i_nlink = fat_subdirs(inode)+2;  // todo  why plus 2?
+	inode->i_nlink = fat_subdirs(inode)+2;  // count in . and ..
 
 	return 0;
 }

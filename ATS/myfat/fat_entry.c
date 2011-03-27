@@ -99,7 +99,7 @@ int fat32_ent_get(struct fat_entry *fatent)
 {
     int next = le32_to_cpu(*fatent->u.ent32_p) & 0x0fffffff;
     WARN_ON((unsigned long)fatent->u.ent32_p & (4 - 1));
-    if (next >= BAD_FAT32)
+    if (next >= BAD_FAT32)  // No one else shall see BAD_FAT32
     	next = FAT_ENT_EOF;
     return next;
 }
@@ -182,4 +182,36 @@ void fat_ent_access_init(struct super_block *sb)
 	}
 }
 
+/*
+* Desc: get the no. of the next entry in the link list of FAT
+* Info: can return FAT_ENT_EOF and FAT_ENT_FREE
+* todo into ATS, the special kind of return value
+*
+*/
+int fatent_next(struct inode *inode, int curent, int *nxtent)
+{
+    struct super_block *sb = inode->i_sb;
+    struct fat_entry ent;
+
+    int offset = 0;
+    sector_t blocknr = 0;
+
+    int ret = 0;
+
+    fatent_init (&ent);
+    fatent_set_entry(&ent, curent);  // set the no. of entry
+    fat_ent_blocknr(sb, curent, &offset, &blocknr);  // get the block no. and offset of dclus
+    
+    if (fat_ent_bread(sb, &ent, offset, blocknr))
+    {
+        ret = -EIO;
+        goto out;
+    }
+
+    *nxtent = fat32_ent_get(&ent);
+
+out:
+    fatent_brelse(&ent);
+    return ret;
+}
 
