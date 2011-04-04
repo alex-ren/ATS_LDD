@@ -81,7 +81,10 @@ struct fat_sb_info {
 	struct inode *fat_inode;
 
 	spinlock_t inode_hash_lock;
-	struct hlist_head inode_hashtable[FAT_HASH_SIZE];  // by rzq: hold all those msdos_inode_info
+        // by rzq: hold all those msdos_inode_info
+        // the key is the address (in the data region) of the dir entry 
+        // for that file
+	struct hlist_head inode_hashtable[FAT_HASH_SIZE];  
 };
 
 static inline struct fat_sb_info *MSDOS_SB(struct super_block *sb)

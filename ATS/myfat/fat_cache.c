@@ -107,7 +107,7 @@ static int fat_bmap_cluster(struct inode *inode, int cluster)
 }
 
 /*
-* Desc: transform sector (inside a file) to 
+* Desc: transform sector (inside a file) to a sector in the volume
 * Para:
 *   In:
 *   sector: no. of sector (inside a file)

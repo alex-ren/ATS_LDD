@@ -1,17 +1,7 @@
-.PHONY	Makefile	/^.PHONY: ats$/
-.PHONY	Makefile	/^.PHONY: clean$/
-ATSCC	Makefile	/^ATSCC=$(ATSHOME)\/bin\/atscc$/
-ATSOPT	Makefile	/^ATSOPT=$(ATSHOME)\/bin\/atsopt$/
-ATS_FAT_ENTRY_H	fat_entry.h	2
+ATS_FAT_ENTRY_H	fat_entry.h	8
 ATS_INODE_H	fat_inode.h	2
 ATS_SB_MGR_H	sb_mgr.h	2
 CONFIG_FAT_DEFAULT_IOCHARSET	sb_mgr.c	29
-DEBFLAGS	Makefile	/^  DEBFLAGS = -O -g -DATS_FAT_DEBUG # "-O" is neede/
-DEBFLAGS	Makefile	/^  DEBFLAGS = -O2$/
-EXTRA_CFLAGS +	Makefile	/^EXTRA_CFLAGS += $(DEBFLAGS)$/
-EXTRA_CFLAGS +	Makefile	/^EXTRA_CFLAGS += -I$(LDDINC)$/
-EXTRA_CFLAGS +	Makefile	/^EXTRA_CFLAGS += -I$(ATSHOME)$/
-EXTRA_CFLAGS +	Makefile	/^EXTRA_CFLAGS += -D_ATS_HEADER_NONE -D_ATS_PRELUDE_/
 FAT_CACHE_H	fat_cache.h	2
 FAT_CACHE_VALID	fat_cache.h	4
 FAT_DIR_H	fat_dir.h	2
@@ -21,12 +11,11 @@ FAT_ERRORS_RO	sb_mgr.h	21
 FAT_H	fat.h	2
 FAT_HASH_BITS	sb_mgr.h	49
 FAT_HASH_SIZE	sb_mgr.h	50
+FAT_MAX_SHORT_SIZE	fat_dir.c	15
+FAT_MAX_UNI_CHARS	fat_dir.c	20
+FAT_MAX_UNI_SIZE	fat_dir.c	21
 FAT_MISC_H	fat_misc.h	2
-HUPed	messages.txt	1
-HUPed	messages.txt	2
 INIT_SHORTNAME_INFO	namei_vfat.c	/^#define INIT_SHORTNAME_INFO(x)	do {		\\$/
-KERNELDIR ?	Makefile	/^KERNELDIR ?= \/lib\/modules\/$(KVERS)\/build$/
-KVERS	Makefile	/^KVERS = $(shell uname -r)$/
 MSDOS_DENTRY_H	msdos_dentry.h	2
 MSDOS_I	fat_inode.h	/^static inline struct fat_inode_info *MSDOS_I(struc/
 MSDOS_INODE_H	msdos_inode.h	2
@@ -68,7 +57,9 @@ Opt_uni_xl_yes	sb_mgr.c	48
 Opt_usefree	sb_mgr.c	44
 Opt_utf8_no	sb_mgr.c	47
 Opt_utf8_yes	sb_mgr.c	47
-PWD	Makefile	/^PWD       := $(shell pwd)$/
+PARSE_EOF	fat_dir.c	298
+PARSE_INVALID	fat_dir.c	298
+PARSE_NOT_LONGNAME	fat_dir.c	298
 VFAT_SFN_CREATE_WIN95	sb_mgr.h	16
 VFAT_SFN_CREATE_WINNT	sb_mgr.h	17
 VFAT_SFN_DISPLAY_LOWER	sb_mgr.h	13
@@ -76,45 +67,38 @@ VFAT_SFN_DISPLAY_WIN95	sb_mgr.h	14
 VFAT_SFN_DISPLAY_WINNT	sb_mgr.h	15
 _2home_2atsuser_2module_dev_2ATS_2myfat_2ATS_2ats_fat_inode_2edats__dynload	ats_fat_inode_dats.c	/^_2home_2atsuser_2module_dev_2ATS_2myfat_2ATS_2ats_/
 _2home_2atsuser_2module_dev_2ATS_2myfat_2ATS_2ats_fat_inode_2edats__staload	ats_fat_inode_dats.c	/^_2home_2atsuser_2module_dev_2ATS_2myfat_2ATS_2ats_/
-__fat_readdir	dmesg.txt	1
+__fat_readdir	fat_dir.c	/^static int __fat_readdir(struct inode *inode, stru/
 __this_module	ats_fat.mod.c	7
 __this_module	ats_msdos.mod.c	7
 __used	ats_fat.mod.c	18
-__used	ats_fat.mod.c	57
+__used	ats_fat.mod.c	66
 __used	ats_msdos.mod.c	18
 __used	ats_msdos.mod.c	30
 allow_utime	sb_mgr.h	33
-ats	Makefile	/^ats: ats_fat_inode_dats.c$/
-ats_fat-objs	Makefile	/^ats_fat-objs := sb_mgr.o ats_fat_inode_dats.o fat_/
-ats_fat_inode_dats.c	Makefile	/^ats_fat_inode_dats.c: ATS\/ats_fat_inode.dats ATS\/a/
-ats_inode_dats.o	Makefile	/^ats_inode_dats.o: ats_fat_inode_dats.c$/
-ats_msdos-objs	Makefile	/^ats_msdos-objs := namei_msdos.o msdos_inode.o msdo/
-bad_chars	namei_msdos.c	20
-bad_if_strict	namei_msdos.c	21
-bhs	fat_entry.h	14
+bhs	fat_entry.h	20
 cache_lru	fat_inode.h	18
 cache_lru_lock	fat_inode.h	17
 cache_valid_id	fat_inode.h	21
-clean	Makefile	/^clean:$/
 cluster_bits	sb_mgr.h	57
 cluster_size	sb_mgr.h	58
 codepage	sb_mgr.h	28
 data_start	sb_mgr.h	64
-depend .depend dep	Makefile	/^depend .depend dep:$/
 dir_entries	sb_mgr.h	63
 dir_ops	sb_mgr.h	75
 dir_per_block	sb_mgr.h	76
 dir_per_block_bits	sb_mgr.h	77
 dir_start	sb_mgr.h	62
+dirent	fat_dir.c	381
 dotsOK	sb_mgr.h	37
-ent12_p	fat_entry.h	9
-ent16_p	fat_entry.h	10
-ent32_p	fat_entry.h	11
-entry	fat_entry.h	7
+ent12_p	fat_entry.h	15
+ent16_p	fat_entry.h	16
+ent32_p	fat_entry.h	17
+entry	fat_entry.h	13
 errors	sb_mgr.h	32
 exit_fat_fs	fat_inode.c	/^static void __exit exit_fat_fs(void)$/
 exit_msdos_fs	namei_msdos.c	/^static void __exit exit_msdos_fs(void)$/
 exit_vfat_fs	namei_vfat.c	/^static void __exit exit_vfat_fs(void)$/
+fat16_towchar	fat_dir.c	/^static inline void fat16_towchar(wchar_t *dst, con/
 fat32_ent_get	fat_entry.c	/^int fat32_ent_get(struct fat_entry *fatent)$/
 fat32_ent_next	fat_entry.c	/^int fat32_ent_next(struct fat_entry *fatent)$/
 fat32_ent_put	fat_entry.c	/^void fat32_ent_put(struct fat_entry *fatent, int n/
@@ -125,50 +109,62 @@ fat_bits	sb_mgr.h	59
 fat_bmap	fat_cache.c	/^int fat_bmap(struct inode *inode, sector_t sector,/
 fat_bmap_cluster	fat_cache.c	/^static int fat_bmap_cluster(struct inode *inode, i/
 fat_calc_dir_size	fat_inode.c	/^static int fat_calc_dir_size(struct inode *inode)$/
+fat_checksum	fat_dir.c	/^static inline unsigned char fat_checksum(const __u/
 fat_clus_to_blknr	fat_cache.c	/^static inline sector_t fat_clus_to_blknr(struct fa/
 fat_default_codepage	sb_mgr.c	38
 fat_default_iocharset	sb_mgr.c	39
 fat_destroy_inode	fat_inode.c	/^static void fat_destroy_inode(struct inode *inode)/
 fat_destroy_inodecache	fat_inode.c	/^static void __exit fat_destroy_inodecache(void)$/
-fat_dir_operations	fat_dir.c	8
+fat_dir_operations	fat_dir.c	634
 fat_ent_access_init	fat_entry.c	/^void fat_ent_access_init(struct super_block *sb)$/
 fat_ent_blocknr	fat_entry.c	/^void fat_ent_blocknr(struct super_block *sb, int e/
 fat_ent_bread	fat_entry.c	/^int fat_ent_bread(struct super_block *sb, struct f/
-fat_entry	fat_entry.h	6
-fat_export_ops	fat_inode.c	57
+fat_entry	fat_entry.h	12
+fat_export_ops	fat_inode.c	137
 fat_fill_super	sb_mgr.c	/^int fat_fill_super(struct super_block *sb, void *d/
 fat_fs_error	fat_misc.c	/^void fat_fs_error(struct super_block *s, const cha/
 fat_fs_error	fat_misc.h	/^extern void fat_fs_error(struct super_block *s, co/
 fat_get_cluster	fat_cache.c	/^int fat_get_cluster(struct inode *inode, int clust/
 fat_get_entry	fat_dir.c	/^static inline int fat_get_entry(struct inode *dir,/
 fat_get_short_entry	fat_dir.c	/^static int fat_get_short_entry(struct inode *dir, /
+fat_hash	fat_inode.c	/^static inline unsigned long fat_hash(loff_t i_pos)/
 fat_hash_init	sb_mgr.c	/^static void fat_hash_init(struct super_block *sb)$/
+fat_iget	fat_inode.c	/^struct inode *fat_iget(struct super_block *sb, lof/
 fat_init_inodecache	fat_inode.c	/^static int __init fat_init_inodecache(void)$/
-fat_inode	fat_entry.h	15
+fat_inode	fat_entry.h	21
 fat_inode	sb_mgr.h	81
 fat_inode_cachep	fat_inode.c	24
 fat_inode_info	fat_inode.h	16
+fat_ioctl_filldir_callback	fat_dir.c	380
 fat_length	sb_mgr.h	61
 fat_lock	sb_mgr.h	68
+fat_make_i_pos	fat_dir.c	/^static inline loff_t fat_make_i_pos(struct super_b/
 fat_make_mode	fat_inode.h	/^static inline mode_t fat_make_mode(struct fat_sb_i/
 fat_mode_can_hold_ro	fat_inode.h	/^static inline int fat_mode_can_hold_ro(struct inod/
 fat_mount_options	sb_mgr.h	23
+fat_parse_long	fat_dir.c	/^static int fat_parse_long(struct inode *dir, loff_/
 fat_read_root	fat_inode.c	/^int fat_read_root(struct inode *inode)$/
+fat_readdir	fat_dir.c	/^static int fat_readdir(struct file *filp, void *di/
 fat_save_attrs	fat_inode.h	/^static inline void fat_save_attrs(struct inode *in/
 fat_sb_info	sb_mgr.h	55
-fat_sops	fat_inode.c	42
+fat_short2lower_uni	fat_dir.c	/^fat_short2lower_uni(struct nls_table *t, unsigned /
+fat_short2uni	fat_dir.c	/^fat_short2uni(struct nls_table *t, unsigned char */
+fat_shortname2uni	fat_dir.c	/^fat_shortname2uni(struct nls_table *nls, unsigned /
+fat_show_options	fat_inode.c	/^static int fat_show_options(struct seq_file *m, st/
+fat_sops	fat_inode.c	122
 fat_start	sb_mgr.h	60
 fat_subdirs	fat_dir.c	/^int fat_subdirs(struct inode *dir)$/
 fat_tokens	sb_mgr.c	53
+fat_uni_to_x8	fat_dir.c	/^static inline int fat_uni_to_x8(struct fat_sb_info/
 fatent_brelse	fat_entry.c	/^void fatent_brelse(struct fat_entry *fatent)$/
 fatent_init	fat_entry.c	/^void fatent_init(struct fat_entry *fatent)$/
+fatent_next	fat_entry.c	/^int fatent_next(struct inode *inode, int curent, i/
 fatent_ops	sb_mgr.h	80
 fatent_set_entry	fat_entry.c	/^void fatent_set_entry(struct fat_entry *fatent, in/
 fatent_shift	sb_mgr.h	79
 fats	sb_mgr.h	59
 flush	sb_mgr.h	42
 foo	ats_fat_inode_dats.c	/^foo (ats_int_type arg0) {$/
-found	messages.txt	4
 free_clus_valid	sb_mgr.h	71
 free_clusters	sb_mgr.h	70
 fs_dmask	sb_mgr.h	27
@@ -176,13 +172,11 @@ fs_fmask	sb_mgr.h	26
 fs_gid	sb_mgr.h	25
 fs_uid	sb_mgr.h	24
 fsinfo_sector	sb_mgr.h	67
-getNextEntry	fat_cache.c	/^static inline int getNextEntry(struct inode *inode/
 i_attrs	fat_inode.h	28
 i_fat_hash	fat_inode.h	30
 i_logstart	fat_inode.h	27
 i_pos	fat_inode.h	29
 i_start	fat_inode.h	26
-idVendor	messages.txt	4
 init_fat_fs	fat_inode.c	/^static int __init init_fat_fs(void)$/
 init_msdos_fs	namei_msdos.c	/^static int __init init_msdos_fs(void)$/
 init_once	fat_inode.c	/^static void init_once(void *foo)$/
@@ -191,19 +185,18 @@ inode_hash_lock	sb_mgr.h	83
 inode_hashtable	sb_mgr.h	84
 iocharset	sb_mgr.h	29
 isvfat	sb_mgr.h	38
-itself	Kconfig	12
 llu	fat.h	25
+long_len	fat_dir.c	385
+longname	fat_dir.c	384
 lower	namei_vfat.c	246
 max_cluster	sb_mgr.h	65
 mmu_private	fat_inode.h	24
 module_init	fat_inode.c	/^module_init(init_fat_fs)$/
 module_init	namei_msdos.c	/^module_init(init_msdos_fs)$/
 module_init	namei_vfat.c	/^module_init(init_vfat_fs)$/
-modules	Makefile	/^modules:$/
 msdos_dentry_operations	msdos_dentry.c	6
 msdos_dir_inode_operations	msdos_inode.c	4
 msdos_fill_super	namei_msdos.c	/^static int msdos_fill_super(struct super_block *sb/
-msdos_format_name	namei_msdos.c	/^static int msdos_format_name(const unsigned char */
 msdos_fs_type	namei_msdos.c	718
 msdos_get_sb	namei_msdos.c	/^static int msdos_get_sb(struct file_system_type *f/
 msdos_tokens	sb_mgr.c	91
@@ -212,31 +205,28 @@ name_check	sb_mgr.h	31
 nls_disk	sb_mgr.h	73
 nls_io	sb_mgr.h	74
 nocase	sb_mgr.h	43
-nr_bhs	fat_entry.h	13
+nr_bhs	fat_entry.h	19
 nr_caches	fat_inode.h	19
 numtail	sb_mgr.h	41
-obj-m +	Makefile	/^obj-m += ats_fat.o$/
-obj-m +	Makefile	/^obj-m += ats_msdos.o$/
 options	sb_mgr.h	72
 parse_options	sb_mgr.c	/^static int parse_options(char *options, int is_vfa/
-partitions	Kconfig	51
 prev_free	sb_mgr.h	69
 quiet	sb_mgr.h	34
+result	fat_dir.c	382
 rodir	sb_mgr.h	46
 root_cluster	sb_mgr.h	66
-round	dmesg.txt	1
 sec_per_clus	sb_mgr.h	56
+short_len	fat_dir.c	387
+shortname	fat_dir.c	386
 shortname	sb_mgr.h	30
 shortname_info	namei_vfat.c	245
 showexec	sb_mgr.h	35
 sys_immutable	sb_mgr.h	36
-them	Kconfig	9
 to_shortname_char	namei_vfat.c	/^static inline int to_shortname_char(struct nls_tab/
-transparent	Kconfig	47
 tz_utc	sb_mgr.h	45
-u	fat_entry.h	12
+u	fat_entry.h	18
+uni16_to_x8	fat_dir.c	/^static int uni16_to_x8(unsigned char *ascii, const/
 unicode_xlate	sb_mgr.h	40
-unsure	Kconfig	55
 upper	namei_vfat.c	247
 usefree	sb_mgr.h	44
 utf8	sb_mgr.h	39

@@ -28,7 +28,7 @@ struct fat_inode_info {
 	int i_attrs;		/* unused attribute bits */
 	loff_t i_pos;		/* on-disk position of directory entry or 0 */
 	struct hlist_node i_fat_hash;	/* hash by i_location */
-	struct inode vfs_inode;
+	struct inode vfs_inode;  // real inode of linux VFS
 };
 
 static inline struct fat_inode_info *MSDOS_I(struct inode *inode)
@@ -81,6 +81,8 @@ static inline void fat_save_attrs(struct inode *inode, u8 attrs)
 	else
 		MSDOS_I(inode)->i_attrs = attrs & (ATTR_UNUSED | ATTR_RO);
 }
+
+struct inode *fat_iget(struct super_block *sb, loff_t i_pos);
 
 #endif
 

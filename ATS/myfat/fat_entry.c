@@ -169,7 +169,7 @@ void fat_ent_access_init(struct super_block *sb)
 	switch (sbi->fat_bits) {
 	case 32:
 		sbi->fatent_shift = 2;
-		sbi->fatent_ops = 0;  // &fat32_ops;
+		sbi->fatent_ops = 0;  // &fat32_ops;  // now never use fatent_ops
 		break;
 	case 16:  // this will not happen
 		sbi->fatent_shift = 1;
