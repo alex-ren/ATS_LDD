@@ -44,7 +44,7 @@ obj-m += ats_msdos.o
 ats_fat-objs := sb_mgr.o ats_fat_inode_dats.o fat_inode.o fat_entry.o \
                fat_dir.o fat_cache.o fat_misc.o
 # ats_vfat-objs := namei_vfat.o
-ats_msdos-objs := namei_msdos.o msdos_inode.o msdos_dentry.o 
+ats_msdos-objs := namei_msdos.o msdos_inode.o msdos_dentry.o msdos_misc.o
 else
 
 KERNELDIR ?= /lib/modules/$(KVERS)/build

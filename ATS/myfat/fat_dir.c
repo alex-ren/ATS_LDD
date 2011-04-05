@@ -139,6 +139,29 @@ int fat_subdirs(struct inode *dir)
 	return count;
 }
 
+/*
+ * Scans a directory for a given file (name points to its formatted name).
+ * Returns an error code or zero.
+ */
+int fat_scan(struct inode *dir, const unsigned char *name,
+	     struct fat_slot_info *sinfo)
+{
+	struct super_block *sb = dir->i_sb;
+
+	sinfo->slot_off = 0;
+	sinfo->bh = NULL;
+	while (fat_get_short_entry(dir, &sinfo->slot_off, &sinfo->bh,
+				   &sinfo->de) >= 0) {
+		if (!strncmp(sinfo->de->name, name, MSDOS_NAME)) {
+			sinfo->slot_off -= sizeof(*sinfo->de);
+			sinfo->nr_slots = 1;
+			sinfo->i_pos = fat_make_i_pos(sb, sinfo->bh, sinfo->de);
+			return 0;
+		}
+	}
+	return -ENOENT;
+}
+
 static inline void fat16_towchar(wchar_t *dst, const __u8 *src, size_t len)
 {
 #ifdef __BIG_ENDIAN
