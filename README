@@ -1,0 +1,11 @@
+-- How to create a file for loopback.
+  >> dd if=/dev/zero of=/virtualfs bs=1024 count=307200
+
+-- use loopon.sh / loopdown.sh to connect the loop device with the file
+
+-- format the block device
+  >> mkfs.msdos -F 32 /dev/loop0
+
+-- use starttest.sh / stoptest.sh to do the test
+
+
