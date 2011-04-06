@@ -5,6 +5,7 @@
 #include "fat_cache.h"
 #include "fat_inode.h"
 
+#include <linux/module.h>
 // #include <linux/msdos_fs.h>
 // #include <linux/nls.h>
 
@@ -144,8 +145,7 @@ int fat_subdirs(struct inode *dir)
  * Scans a directory for a given file (name points to its formatted name).
  * Returns an error code or zero.
  */
-int fat_scan(struct inode *dir, const unsigned char *name,
-	     struct fat_slot_info *sinfo)
+int fat_scan(struct inode *dir, const unsigned char *name, struct fat_slot_info *sinfo)
 {
 	struct super_block *sb = dir->i_sb;
 
@@ -162,6 +162,7 @@ int fat_scan(struct inode *dir, const unsigned char *name,
 	}
 	return -ENOENT;
 }
+EXPORT_SYMBOL_GPL(fat_scan);
 
 static inline void fat16_towchar(wchar_t *dst, const __u8 *src, size_t len)
 {
@@ -653,6 +654,7 @@ out:
 int fat_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
 	struct inode *inode = filp->f_path.dentry->d_inode;
+        printk (KERN_INFO "myfat: fat_readdir\n");
 	return __fat_readdir(inode, filp, dirent, filldir, 0, 0);
 }
 

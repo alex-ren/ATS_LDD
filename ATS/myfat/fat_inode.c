@@ -122,26 +122,61 @@ static int fat_show_options(struct seq_file *m, struct vfsmount *mnt)
 	return 0;
 }
 
-const struct super_operations fat_sops = {
-	.alloc_inode	= fat_alloc_inode,
-	.destroy_inode	= fat_destroy_inode,
-	.write_inode	= 0,  // fat_write_inode,    // todo
-	.delete_inode	= 0,  // fat_delete_inode,   // todo
-	.put_super	= 0,  // fat_put_super,      // todo
-	.write_super	= 0,  // fat_write_super,    // todo
-	.sync_fs	= 0,  // fat_sync_fs,        // todo
-	.statfs		= 0,  // fat_statfs,         // todo
-	.clear_inode	= 0,  // fat_clear_inode,    // todo
-	.remount_fs	= 0,  // fat_remount,        // todo
+static int fat_sync_fs(struct super_block *sb, int wait)
+{
+	int err = 0;
+        printk (KERN_INFO "myfat: fat_sync_fs\n");
 
-	.show_options	= fat_show_options,
-};
+	if (sb->s_dirt) {
+		lock_super(sb);
+		sb->s_dirt = 0;
+		// err = fat_clusters_flush(sb);  // todo not flush yet
+		unlock_super(sb);
+	}
 
-const struct export_operations fat_export_ops = {
-	.encode_fh	= 0,  //  fat_encode_fh,  // todo
-	.fh_to_dentry	= 0,  //  fat_fh_to_dentry,  // todo
-	.get_parent	= 0,  //  fat_get_parent,  // todo
-};
+	return err;
+}
+
+static void fat_clear_inode(struct inode *inode)
+{
+	// fat_cache_inval_inode(inode);  // don't cache yet
+        printk (KERN_INFO "myfat: fat_clear_inode\n");
+	fat_detach(inode);
+}
+
+static void fat_write_super(struct super_block *sb)
+{
+	lock_super(sb);
+	sb->s_dirt = 0;
+
+	if (!(sb->s_flags & MS_RDONLY))
+		1;  // fat_clusters_flush(sb); // todo not flush yet
+	unlock_super(sb);
+}
+
+static void fat_put_super(struct super_block *sb)
+{
+	struct fat_sb_info *sbi = MSDOS_SB(sb);
+        printk (KERN_INFO "myfat: fat_put_super\n");
+
+	lock_kernel();
+
+	if (sb->s_dirt)
+		fat_write_super(sb);
+
+	iput(sbi->fat_inode);
+
+	unload_nls(sbi->nls_disk);
+	unload_nls(sbi->nls_io);
+
+	if (sbi->options.iocharset != fat_default_iocharset)
+		kfree(sbi->options.iocharset);
+
+	sb->s_fs_info = NULL;
+	kfree(sbi);
+
+	unlock_kernel();
+}
 
 /*
 * Desc: Return the size of a directory file in bytes
@@ -171,6 +206,8 @@ int fat_read_root(struct inode *inode)
 	struct super_block *sb = inode->i_sb;
 	struct fat_sb_info *sbi = MSDOS_SB(sb);
 	int error = 0;
+
+        printk (KERN_INFO "myfat: fat_read_root\n");
 
 	MSDOS_I(inode)->i_pos = 0;
 	inode->i_uid = sbi->options.fs_uid;
@@ -232,6 +269,16 @@ struct inode *fat_iget(struct super_block *sb, loff_t i_pos)
 	spin_unlock(&sbi->inode_hash_lock);
 	return inode;
 }
+
+void fat_detach(struct inode *inode)
+{
+	struct fat_sb_info *sbi = MSDOS_SB(inode->i_sb);
+	spin_lock(&sbi->inode_hash_lock);
+	MSDOS_I(inode)->i_pos = 0;
+	hlist_del_init(&MSDOS_I(inode)->i_fat_hash);
+	spin_unlock(&sbi->inode_hash_lock);
+}
+EXPORT_SYMBOL_GPL(fat_detach);
 
 static int is_exec(unsigned char *extension)
 {
@@ -320,9 +367,39 @@ void fat_attach(struct inode *inode, loff_t i_pos)
 }
 EXPORT_SYMBOL_GPL(fat_attach);
 
+struct inode *fat_build_inode(struct super_block *sb,
+			struct msdos_dir_entry *de, loff_t i_pos)
+{
+	struct inode *inode;
+	int err;
+
+	inode = fat_iget(sb, i_pos);
+	if (inode)
+		goto out;
+	inode = new_inode(sb);  // by rzq: counter is 1and the inode has been chained into sb
+	if (!inode) {
+		inode = ERR_PTR(-ENOMEM);
+		goto out;
+	}
+	inode->i_ino = iunique(sb, MSDOS_ROOT_INO);
+	inode->i_version = 1;
+	err = fat_fill_inode(inode, de);
+	if (err) {
+		iput(inode);
+		inode = ERR_PTR(err);
+		goto out;
+	}
+	fat_attach(inode, i_pos);
+	insert_inode_hash(inode);  // don't use ref counter
+out:
+	return inode;
+}
+EXPORT_SYMBOL_GPL(fat_build_inode);
+
 int fat_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 {
 	struct inode *inode = dentry->d_inode;
+        printk (KERN_INFO "myfat: fat_getattr\n");
 	generic_fillattr(inode, stat);
 	// generic_fillattr would fill stat->blksize with the size of the block
 	// but we want to fill it with the size of a cluster of the FAT
@@ -335,6 +412,27 @@ const struct inode_operations fat_file_inode_operations = {
 	.truncate	= 0,  // fat_truncate,
 	.setattr	= 0,  // fat_setattr,
 	.getattr	= fat_getattr,
+};
+
+const struct super_operations fat_sops = {
+	.alloc_inode	= fat_alloc_inode,
+	.destroy_inode	= fat_destroy_inode,
+	.write_inode	= 0,  // fat_write_inode,    // todo
+	.delete_inode	= 0,  // fat_delete_inode,   // todo
+	.put_super	= fat_put_super,      // todo
+	.write_super	= 0,  // fat_write_super,    // todo
+	.sync_fs	= fat_sync_fs,
+	.statfs		= 0,  // fat_statfs,         // todo
+	.clear_inode	= fat_clear_inode,    // todo
+	.remount_fs	= 0,  // fat_remount,        // todo
+
+	.show_options	= fat_show_options,
+};
+
+const struct export_operations fat_export_ops = {
+	.encode_fh	= 0,  //  fat_encode_fh,  // todo
+	.fh_to_dentry	= 0,  //  fat_fh_to_dentry,  // todo
+	.get_parent	= 0,  //  fat_get_parent,  // todo
 };
 
 static void init_once(void *foo)

@@ -46,6 +46,12 @@ static struct dentry *msdos_lookup(struct inode *dir, struct dentry *dentry,
 	struct inode *inode;
 	int err;
 
+        char szBuffer[20];
+        int len = min((int)dentry->d_name.len, 19);
+        memset(szBuffer, 0, 20);
+        __memcpy(szBuffer, dentry->d_name.name, len);
+        printk (KERN_INFO "myfat: msdos_lookup, dir is %s\n", szBuffer);
+
 	lock_super(sb);
 
 	err = msdos_find(dir, dentry->d_name.name, dentry->d_name.len, &sinfo);
@@ -76,34 +82,6 @@ error:
 	return ERR_PTR(err);
 }
 
-
-struct inode *fat_build_inode(struct super_block *sb,
-			struct msdos_dir_entry *de, loff_t i_pos)
-{
-	struct inode *inode;
-	int err;
-
-	inode = fat_iget(sb, i_pos);
-	if (inode)
-		goto out;
-	inode = new_inode(sb);  // by rzq: counter is 1and the inode has been chained into sb
-	if (!inode) {
-		inode = ERR_PTR(-ENOMEM);
-		goto out;
-	}
-	inode->i_ino = iunique(sb, MSDOS_ROOT_INO);
-	inode->i_version = 1;
-	err = fat_fill_inode(inode, de);
-	if (err) {
-		iput(inode);
-		inode = ERR_PTR(err);
-		goto out;
-	}
-	fat_attach(inode, i_pos);
-	insert_inode_hash(inode);  // don't use ref counter
-out:
-	return inode;
-}
 
 const struct inode_operations msdos_dir_inode_operations = {
 	.create		= 0,  // todo msdos_create,

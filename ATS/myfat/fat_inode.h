@@ -85,9 +85,16 @@ static inline void fat_save_attrs(struct inode *inode, u8 attrs)
 }
 
 struct inode *fat_iget(struct super_block *sb, loff_t i_pos);
+
+void fat_detach(struct inode *inode);
+
 int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de);
 
 void fat_attach(struct inode *inode, loff_t i_pos);
+
+struct inode *fat_build_inode(struct super_block *sb,
+			struct msdos_dir_entry *de, loff_t i_pos);
+
 
 #endif
 

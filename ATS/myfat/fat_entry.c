@@ -201,6 +201,7 @@ int fatent_next(struct inode *inode, int curent, int *nxtent)
     fatent_init (&ent);
     fatent_set_entry(&ent, curent);  // set the no. of entry
     fat_ent_blocknr(sb, curent, &offset, &blocknr);  // get the block no. and offset of dclus
+    printk (KERN_INFO "myfat: fatent_next offset is %d, blocknr is %lld\n", offset, blocknr);
     
     if (fat_ent_bread(sb, &ent, offset, blocknr))
     {

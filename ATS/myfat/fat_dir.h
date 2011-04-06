@@ -25,8 +25,8 @@ int fat_subdirs(struct inode *dir);
  * Scans a directory for a given file (name points to its formatted name).
  * Returns an error code or zero.
  */
-int fat_scan(struct inode *dir, const unsigned char *name,
-		    struct fat_slot_info *sinfo);
+int fat_scan(struct inode *dir, const unsigned char *name, struct fat_slot_info *sinfo);
+
 #endif
 
 

@@ -36,13 +36,15 @@ int fat_get_cluster(struct inode *inode, int cluster, int *fclus, int *dclus)
     const int limit = sb->s_maxbytes >> MSDOS_SB(sb)->cluster_bits;
     int nclus = 0;
 
-    int nr = 0;
+    int ret = 0;
 
     // first cluster should be known already, which is not 0
     BUG_ON(MSDOS_I(inode)->i_start == 0);
     *fclus = 0;
     *dclus = MSDOS_I(inode)->i_start;
 
+    printk (KERN_INFO "myfat: fat_get_cluster cluster is %d, \
+fclus is %d, dclus is %d\n", cluster, *fclus, *dclus);
     while (*fclus < cluster)
     {
         if (*fclus > limit)
@@ -51,25 +53,25 @@ int fat_get_cluster(struct inode *inode, int cluster, int *fclus, int *dclus)
             fat_fs_error(sb, "%s: detected the cluster chain loop"
                     " (i_pos %lld)", __func__,
                     MSDOS_I(inode)->i_pos);
-            nr = -EIO;
+            ret = -EIO;
             goto out;
         }
 
         // dclus is equivalent to entry
-        nr = fatent_next(inode, *dclus, &nclus);
-        if (nr < 0)
+        ret = fatent_next(inode, *dclus, &nclus);
+        if (ret < 0)
         {
             goto out;
         }
-        else if (FAT_ENT_FREE == nr)
+        else if (FAT_ENT_FREE == nclus)
         {
             fat_fs_error(sb, "%s: invalid cluster chain"
                         "(i_pos %lld)", __func__,
                         MSDOS_I(inode)->i_pos);
-            nr = -EIO;
+            ret = -EIO;
             goto out;
         }
-        else if (FAT_ENT_EOF == nr)
+        else if (FAT_ENT_EOF == nclus)
         {
             goto out;
         }  // FAT_ENT_BAD has been handled underneath
@@ -80,7 +82,7 @@ int fat_get_cluster(struct inode *inode, int cluster, int *fclus, int *dclus)
 
 out:
 
-    return nr;
+    return ret;
 }
 
 /*

@@ -27,6 +27,8 @@ static int msdos_cmp(struct dentry *dentry, struct qstr *a, struct qstr *b)
 	unsigned char a_msdos_name[MSDOS_NAME], b_msdos_name[MSDOS_NAME];
 	int error;
 
+        printk (KERN_INFO "myfat: msdos_cmp\n");
+
 	error = msdos_format_name(a->name, a->len, a_msdos_name, options);
 	if (error)
 		goto old_compare;

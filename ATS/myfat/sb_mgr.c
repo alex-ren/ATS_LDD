@@ -31,12 +31,13 @@
 
 #include "ATS/ats_fat_inode.h"
 
+
+int fat_default_codepage = CONFIG_FAT_DEFAULT_CODEPAGE;
+char fat_default_iocharset[] = CONFIG_FAT_DEFAULT_IOCHARSET;
+
 static inline int myfoo (int i) {
   return foo (i);
 }
-
-static int fat_default_codepage = CONFIG_FAT_DEFAULT_CODEPAGE;
-static char fat_default_iocharset[] = CONFIG_FAT_DEFAULT_IOCHARSET;
 
 enum {
 	Opt_check_n, Opt_check_r, Opt_check_s, Opt_uid, Opt_gid,
@@ -377,6 +378,8 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	long error;
 	char buf[50];
 
+        int newblksz = 0;
+
         printk (KERN_INFO "myfat: fat_fill_super\n");
 
 	/*
@@ -402,8 +405,9 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 		goto out_fail;
 
 	error = -EIO;
-	sb_min_blocksize(sb, 512);  // set the block size to 512 if the 
+	newblksz = sb_min_blocksize(sb, 512);  // set the block size to 512 if the 
                                     // block device supports
+        printk (KERN_ERR "FAT: myfat: new block size is %d\n", newblksz);
 
         // read the first block
 	bh = sb_bread(sb, 0);  // read one block, don't forget to release bh
@@ -455,6 +459,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
         // volume is divided into sectors, which in turn are
         // numbered from 0
 	logical_sector_size = get_unaligned_le16(&b->sector_size);
+        printk(KERN_INFO "myfat: fat_fill_super sector_size is %d\n", logical_sector_size);
 	if (!is_power_of_2(logical_sector_size)
 	    || (logical_sector_size < 512)
 	    || (logical_sector_size > 4096)) {
@@ -517,6 +522,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
                 // it's FAT 32
 		struct fat_boot_fsinfo *fsinfo;
 		struct buffer_head *fsinfo_bh;
+                printk (KERN_INFO "myfat: fat_fill_super 0002000\n");
 
 		/* Must be FAT32 */
 		sbi->fat_bits = 32;  // FAT 32
@@ -556,6 +562,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 
 		brelse(fsinfo_bh);
 	}
+        printk (KERN_INFO "myfat: fat_fill_super 0003000\n");
 
         // the following code applies to FAT 12/16/32
 	sbi->dir_per_block = sb->s_blocksize / sizeof(struct msdos_dir_entry);
@@ -575,6 +582,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 		brelse(bh);
 		goto out_invalid;
 	}
+        printk (KERN_INFO "myfat: fat_fill_super 0004000\n");
 
         // for FAT 32, rootdir_sectors is 0 since sbi->dir_entries is 0
 	rootdir_sectors = sbi->dir_entries
@@ -583,6 +591,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
         // starting sector of data region
 	sbi->data_start = sbi->dir_start + rootdir_sectors;
         
+        printk (KERN_INFO "myfat: fat_fill_super 0005000\n");
         // for FAT 32 b->sectors is 0
         // for FAT 32 it is the total no. of sectors of the volume
 	total_sectors = get_unaligned_le16(&b->sectors);
@@ -601,6 +610,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	    brelse(bh);
             goto out_invalid;
         }
+	printk(KERN_ERR "myfat: FAT %d is supported.\n", sbi->fat_bits);
             
         // finally we can distinguish 12 / 16 / 32
 
@@ -609,13 +619,14 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	fat_clusters = sbi->fat_length * sb->s_blocksize * 8 / sbi->fat_bits;
         // The first two entries of FAT are special entries.
 	total_clusters = min(total_clusters, fat_clusters - FAT_START_ENT);
-	if (total_clusters > MAX_FAT((void*)3)) {
+	if (total_clusters > MAX_FAT(sb)) {
 		if (!silent)
 			printk(KERN_ERR "FAT: count of clusters too big (%u)\n",
 			       total_clusters);
 		brelse(bh);
 		goto out_invalid;
 	}
+        printk (KERN_INFO "myfat: fat_fill_super 0006000\n");
 
 	sbi->max_cluster = total_clusters + FAT_START_ENT;
 	/* check the free_clusters, it's not necessarily correct */
@@ -626,11 +637,14 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	if (sbi->prev_free < FAT_START_ENT)
 		sbi->prev_free = FAT_START_ENT;
 
+        printk (KERN_INFO "myfat: fat_fill_super 0007000\n");
 	brelse(bh);  // bh is of no use any more, so release it
 
 	/* set up enough so that it can read an inode */
 	fat_hash_init(sb);
+        printk (KERN_INFO "myfat: fat_fill_super 0008000\n");
 	fat_ent_access_init(sb);
+        printk (KERN_INFO "myfat: fat_fill_super 0009000\n");
 
 	/*
 	 * The low byte of FAT's first entry must have same value with
@@ -649,6 +663,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 		goto out_fail;
 	}
 
+        printk (KERN_INFO "myfat: fat_fill_super 0010000\n");
 	/* FIXME: utf8 is using iocharset for upper/lower conversion */
 	if (sbi->options.isvfat) {
 		sbi->nls_io = load_nls(sbi->options.iocharset);
@@ -666,9 +681,11 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	MSDOS_I(fat_inode)->i_pos = 0;
 	sbi->fat_inode = fat_inode;  // what is the fat_inode for? seems to have sth.
                                     // to do with entry. But I don't use it.
+        printk (KERN_INFO "myfat: fat_fill_super 0011000\n");
 	root_inode = new_inode(sb);
 	if (!root_inode)
 		goto out_fail;
+        printk (KERN_INFO "myfat: fat_fill_super 0012000\n");
 	root_inode->i_ino = MSDOS_ROOT_INO;  // defined by linux = 1
 	root_inode->i_version = 1;
 	error = fat_read_root(root_inode);
@@ -677,6 +694,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	error = -ENOMEM;
 	insert_inode_hash(root_inode);  // add inode to kernel's inode_hashtable
 	sb->s_root = d_alloc_root(root_inode);
+        printk (KERN_INFO "myfat: fat_fill_super 0013000\n");
 	if (!sb->s_root) {
 		printk(KERN_ERR "FAT: get root inode failed\n");
 		goto out_fail;

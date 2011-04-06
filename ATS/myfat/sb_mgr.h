@@ -20,6 +20,9 @@
 #define FAT_ERRORS_PANIC	2      /* panic on error */
 #define FAT_ERRORS_RO		3      /* remount r/o on error */
 
+extern int fat_default_codepage;
+extern char fat_default_iocharset[];
+
 struct fat_mount_options {
 	uid_t fs_uid;
 	gid_t fs_gid;
