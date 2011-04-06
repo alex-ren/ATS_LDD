@@ -2,6 +2,8 @@
 #include "sb_mgr.h"
 #include "msdos_misc.h"
 #include "fat_dir.h"
+#include "msdos_dentry.h"
+#include "fat_inode.h"
 
 
 /*
@@ -55,7 +57,6 @@ static struct dentry *msdos_lookup(struct inode *dir, struct dentry *dentry,
 		goto error;
 	}
 
-        // todo
 	inode = fat_build_inode(sb, sinfo.de, sinfo.i_pos);  // by rzq: hold the reference count
 	brelse(sinfo.bh);
 	if (IS_ERR(inode)) {
@@ -75,6 +76,35 @@ error:
 	return ERR_PTR(err);
 }
 
+
+struct inode *fat_build_inode(struct super_block *sb,
+			struct msdos_dir_entry *de, loff_t i_pos)
+{
+	struct inode *inode;
+	int err;
+
+	inode = fat_iget(sb, i_pos);
+	if (inode)
+		goto out;
+	inode = new_inode(sb);  // by rzq: counter is 1and the inode has been chained into sb
+	if (!inode) {
+		inode = ERR_PTR(-ENOMEM);
+		goto out;
+	}
+	inode->i_ino = iunique(sb, MSDOS_ROOT_INO);
+	inode->i_version = 1;
+	err = fat_fill_inode(inode, de);
+	if (err) {
+		iput(inode);
+		inode = ERR_PTR(err);
+		goto out;
+	}
+	fat_attach(inode, i_pos);
+	insert_inode_hash(inode);  // don't use ref counter
+out:
+	return inode;
+}
+
 const struct inode_operations msdos_dir_inode_operations = {
 	.create		= 0,  // todo msdos_create,
 	.lookup		= msdos_lookup,
@@ -83,6 +113,6 @@ const struct inode_operations msdos_dir_inode_operations = {
 	.rmdir		= 0,  // todo msdos_rmdir,
 	.rename		= 0,  // todo msdos_rename,
 	.setattr	= 0,  // todo fat_setattr,
-	.getattr	= 0,  // todo fat_getattr,
+	.getattr	= fat_getattr,
 };
 

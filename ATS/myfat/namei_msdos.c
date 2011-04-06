@@ -11,9 +11,9 @@
 #include <linux/buffer_head.h>
 
 // #include "fat.h"
+#include "sb_mgr.h"
 #include "msdos_inode.h"
 #include "msdos_dentry.h"
-#include "sb_mgr.h"
 // 
 // /***** Creates a directory entry (name is already formatted). */
 // static int msdos_add_entry(struct inode *dir, const unsigned char *name,
@@ -434,18 +434,6 @@
 // 	return err;
 // }
 
-
-// todo
-// static const struct inode_operations msdos_dir_inode_operations = {
-// 	.create		= msdos_create,
-// 	.lookup		= msdos_lookup,
-// 	.unlink		= msdos_unlink,
-// 	.mkdir		= msdos_mkdir,
-// 	.rmdir		= msdos_rmdir,
-// 	.rename		= msdos_rename,
-// 	.setattr	= fat_setattr,
-// 	.getattr	= fat_getattr,
-// };
 
 // sb points to super_block already allocated
 // data: no idea of what it is but didn't use it at all

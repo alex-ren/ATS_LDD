@@ -9,7 +9,9 @@
 extern const struct super_operations fat_sops;
 extern const struct export_operations fat_export_ops;
 
+extern const struct inode_operations fat_file_inode_operations;
 
+int fat_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat);
 /*
  * MS-DOS file system inode data in memory
  */
@@ -83,6 +85,9 @@ static inline void fat_save_attrs(struct inode *inode, u8 attrs)
 }
 
 struct inode *fat_iget(struct super_block *sb, loff_t i_pos);
+int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de);
+
+void fat_attach(struct inode *inode, loff_t i_pos);
 
 #endif
 

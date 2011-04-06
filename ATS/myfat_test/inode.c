@@ -30,8 +30,6 @@
 #include <asm/unaligned.h>
 #include "fat.h"
 
-#include "ATS/ats_inode.h"
-
 #ifndef CONFIG_FAT_DEFAULT_IOCHARSET
 /* if user don't select VFAT, this is undefined. */
 #define CONFIG_FAT_DEFAULT_IOCHARSET	""
@@ -997,11 +995,11 @@ static const match_table_t vfat_tokens = {
 static int parse_options(char *options, int is_vfat, int silent, int *debug,
 			 struct fat_mount_options *opts)
 {
-        printk (KERN_INFO "myfat: parse_option\n");
 	char *p;
 	substring_t args[MAX_OPT_ARGS];
 	int option;
 	char *iocharset;
+        printk (KERN_INFO "myfat: parse_option\n");
 
         if (options)
         {

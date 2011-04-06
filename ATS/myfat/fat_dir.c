@@ -1,3 +1,4 @@
+
 #include "fat_dir.h"
 #include "fat.h"
 #include "sb_mgr.h"
@@ -431,7 +432,9 @@ static int __fat_readdir(struct inode *inode, struct file *filp, void *dirent,
 	wchar_t bufuname[14];  // holding the unicode of short name
 	wchar_t *unicode = NULL;  // store unicode name for the long name
 	unsigned char c, work[MSDOS_NAME];  // temporary buffer for holding short name
-	unsigned char bufname[FAT_MAX_SHORT_SIZE], *ptname = bufname; // holding the UTF-8 of short name translated from bufuname
+	unsigned char bufname[FAT_MAX_SHORT_SIZE];
+        // holding the UTF-8 of short name translated from bufuname
+        unsigned char *ptname = bufname;
 	
 	// translate short name: work -> bufuname -> bufname
 	
@@ -647,21 +650,9 @@ out:
 *   dirent: struct kernel uses to contain direntry
 *   filldir: function kernel provides for others to use to fill the dir entry
 */
-static int fat_readdir(struct file *filp, void *dirent, filldir_t filldir)
+int fat_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	return __fat_readdir(inode, filp, dirent, filldir, 0, 0);
 }
-
-
-const struct file_operations fat_dir_operations = {
-	.llseek		= 0,  // todo my_generic_file_llseek,
-	.read		= 0,  // todo my_generic_read_dir,
-	.readdir	= fat_readdir,
-	.ioctl		= 0,  // todo fat_dir_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= 0,  // todo fat_compat_dir_ioctl,
-#endif
-	.fsync		= 0,  // todo fat_file_fsync,
-};
 

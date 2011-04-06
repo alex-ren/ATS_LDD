@@ -3,7 +3,6 @@
 
 #include <linux/fs.h>
 
-extern const struct file_operations fat_dir_operations;
 
 struct fat_slot_info {
 	loff_t i_pos;		/* on-disk position of directory entry */
@@ -13,12 +12,19 @@ struct fat_slot_info {
 	struct buffer_head *bh;
 };
 
+int fat_readdir(struct file *filp, void *dirent, filldir_t filldir);
+
 /*
  * fat_subdirs counts the number of sub-directories of dir. It can be run
+	if (error)
  * on directories being created.
  */
 int fat_subdirs(struct inode *dir);
 
+/*
+ * Scans a directory for a given file (name points to its formatted name).
+ * Returns an error code or zero.
+ */
 int fat_scan(struct inode *dir, const unsigned char *name,
 		    struct fat_slot_info *sinfo);
 #endif
