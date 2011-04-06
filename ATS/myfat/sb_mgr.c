@@ -3,6 +3,8 @@
 #include "fat_inode.h"
 #include "fat_entry.h"
 
+#include "ATS/ats_fat_inode.h"
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/time.h>
@@ -20,16 +22,15 @@
 #include <linux/writeback.h>
 #include <linux/log2.h>
 #include <linux/hash.h>
+#include <linux/msdos_fs.h>
 #include <asm/unaligned.h>
 
-#include <linux/msdos_fs.h>
 
 #ifndef CONFIG_FAT_DEFAULT_IOCHARSET
 /* if user don't select VFAT, this is undefined. */
 #define CONFIG_FAT_DEFAULT_IOCHARSET	""
 #endif
 
-#include "ATS/ats_fat_inode.h"
 
 
 int fat_default_codepage = CONFIG_FAT_DEFAULT_CODEPAGE;

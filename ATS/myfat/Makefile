@@ -66,9 +66,12 @@ ats_inode_dats.o: ats_fat_inode_dats.c
 
 .PHONY: ats
 
-ats: ats_fat_inode_dats.c
+ats: ats_fat_inode_dats.c ats_fat_file_dats.c
 
 ats_fat_inode_dats.c: ATS/ats_fat_inode.dats ATS/ats_fat_inode.sats
+	$(ATSOPT) -IATS ATS -o $@ -d $<
+
+ats_fat_file_dats.c: ATS/ats_fat_file.dats ATS/ats_fat_file.sats
 	$(ATSOPT) -IATS ATS -o $@ -d $<
 # 
 

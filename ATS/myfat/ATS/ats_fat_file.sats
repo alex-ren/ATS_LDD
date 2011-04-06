@@ -1,6 +1,6 @@
 //
 // Author: Zhiqiang Ren (aren AT cs DOT bu DOT edu)
-// Time: March 17th., 2011
+// Time: April 6th., 2011
 //
 (* ****** ****** *)
 
@@ -11,5 +11,6 @@
 %}  // end of [%{#]
 
 
-fun foo (i: int): int = "foo"
+fun fat_sync_read ((*   *)): int = "ats_fat_sync_read"
+
 
