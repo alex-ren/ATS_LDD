@@ -13,10 +13,7 @@
 /* ****** ****** */
 
 ssize_t ats_fat_sync_read(struct file *filp, 
-    char __user *buf, size_t len, loff_t *ppos)
-{
-    return 0;
-}
+    char __user *buf, size_t len, loff_t *ppos);
 
 // struct inode * ats_new_inode(struct super_block *sb);
 

@@ -408,7 +408,6 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	error = -EIO;
 	newblksz = sb_min_blocksize(sb, 512);  // set the block size to 512 if the 
                                     // block device supports
-        printk (KERN_ERR "FAT: myfat: new block size is %d\n", newblksz);
 
         // read the first block
 	bh = sb_bread(sb, 0);  // read one block, don't forget to release bh
