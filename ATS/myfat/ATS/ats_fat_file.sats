@@ -14,7 +14,7 @@ staload UN = "prelude/SATS/unsafe.sats"
 
 staload Basics = "contrib/linux/basics.sats"
 
-// has been defined somewhere, where?
+// has been defined somewhere in ATS, where?
 // abst@ype ssize_t = $extype "ssize_t"
 
 abst@ype loff_t (ofs: int) = $extype "loff_t"
@@ -36,9 +36,17 @@ typedef loff_t = [ofs: int] loff_t (ofs)
 #define FAT_ENT_EOF	(EOF_FAT32)
 *)
 
+(*
 datasort
 cluster_kind =
- | CKnorm
+ | {n:int | n = 0 or nkk} CKnorm of (n)
+ | CKfree
+ | CKend
+ | CKbad
+*)
+datasort
+cluster_kind =
+ | CKnorm  // todo norm can be end or not
  | CKfree
  | CKend
  | CKbad
@@ -48,6 +56,10 @@ sortdef ck = cluster_kind
 
 abst@ype ncluster (ck) = int
 typedef ncluster = [k:ck] ncluster (k)
+
+(* include/linux/msdos_fs.h *)
+#define FAT_START_ENT 2  // todo which is better? this line or next
+// #define FAT_START_ENT $extval (ncluster, "FAT_START_ENT")
 
 abst@ype nblock = $extype "sector_t"
 viewtypedef file = $extype_struct "file_struct" of {
@@ -63,11 +75,18 @@ viewtypedef inode_own = $extype_struct "inode_struct" of {
   i_size = loff_t
 }
 
-fun cmp_loff_lt {m,n: int} (l: loff_t m, r: loff_t m): bool (m < n) 
+viewtypedef super_block = $extype_struct "super_block_struct" of {
+  empty = empty
+}
+
+fun cmp_loff_lt {m,n: int} (l: loff_t m, r: loff_t n): bool (m < n) 
 overload < with cmp_loff_lt
 
-fun cmp_loff_gt {m,n: int} (l: loff_t m, r: loff_t m): bool (m > n) 
+fun cmp_loff_gt {m,n: int} (l: loff_t m, r: loff_t n): bool (m > n) 
 overload > with cmp_loff_lt
+
+fun arith_loff_minus_size {m,n: int} (l: loff_t m, r: size_t n): loff_t (m - n)
+overload - with arith_loff_minus_size
 
 viewtypedef fat_inode = $extype_struct "fat_inode_info_struct" of {
   empty = empty
@@ -76,6 +95,14 @@ viewtypedef fat_inode = $extype_struct "fat_inode_info_struct" of {
 viewtypedef fat_inode_own = $extype_struct "fat_inode_info_struct" of {
   empty = empty,
   i_start = ncluster (CKnorm)
+}
+
+viewtypedef fat_sb_info = $extype_struct "fat_sb_info_struct" of {
+  empty = empty,
+  sec_per_clus = uint,  // todo unsigned short
+  cluster_size = uint,  // toto unsigned int
+  data_start = uint  // todo unsigned long
+  
 }
 
 (*
@@ -92,8 +119,8 @@ fun fat_sync_read
  {l:addr}
  {n:nat} 
  {ofs:nat} (
- pfbuf: !bytes(n) @ l
-, file: &file
+ pfbuf: !bytes(n) @ l |
+ file: &file
 , p: $Basics.uptr l
 , n: size_t (n)
 , pos: &loff_t (ofs) >> loff_t (ofs + max(0,n1))
@@ -112,17 +139,42 @@ fun file2inode_acquire (
 fun file2inode_release {l: addr} (
  pf: inode_own @ l | p: ptr l
 ) : void
- = "mac#atsfs_file2inode_read_release"
+ = "mac#atsfs_file2inode_release"
+
+fun inode_own2inode (
+  node: &inode_own
+) : [l:addr] ($UN.viewout (inode @ l) | ptr l)
 
 fun inode2fat_inode (
  node: &inode
 ) : [l:addr] ($UN.viewout (fat_inode @ l) | ptr l)
- = "mac#atsfs_file2inode"
+ = "mac#atsfs_inode2fat_inode"
 
 fun inode2fat_inode_own (
  node: &inode_own
 ) : [l:addr] ($UN.viewout (fat_inode @ l) | ptr l)
- = "mac#atsfs_file2inode_own"
+ = "mac#atsfs_inode2fat_inode_own"
+
+symintr inode2sb
+
+fun inode2super_block (
+ node: &inode
+) : [l:addr] ($UN.viewout (super_block @ l) | ptr l)
+ = "mac#atsfs_inode2super_block"
+
+overload inode2sb with inode2super_block
+
+fun inode_own2super_block (
+ node: &inode_own
+) : [l:addr] ($UN.viewout (super_block @ l) | ptr l)
+ = "mac#atsfs_inode2super_block"
+
+overload inode2sb with inode_own2super_block
+
+fun sb2fat_sb (
+ sb: &super_block
+) : [l:addr] ($UN.viewout (fat_sb_info @ l) | ptr l)
+ = "mac#atsfs_sb2fat_sb"
 
 fun get_first_cluster
  (node: &fat_inode): ncluster
@@ -136,7 +188,9 @@ fun get_nth_cluster {n:nat} (
  cls: ncluster (CKnorm), n: int n, n1: &int? >> int n1
 ) : #[n1:nat | n1 <= n] ncluster
 
-fun ncluster2block (n: ncluster CKnorm): nblock
+fun ncluster2block (sbi: &fat_sb_info, n: ncluster CKnorm): nblock
+
+// fun get_next_block (n: nblock): nblock
 
 (*
 sbread: read a block
@@ -152,10 +206,18 @@ fun bufferheadptr_free {l:agz} (bf: bufferheadptr l): void
 
 *)
 
-sta blksz : int
+sta blksz : int  // todo unsigned long: see super_block in fs.h
+sta clssz : int
+
+prfun blksz_pos (): [blksz > 0] void
+prfun clssz_pos (): [clssz > 0] void
 
 fun
-get_blocksize (): int (blksz)
+get_blocksize (sb: &super_block): int (blksz)
+
+fun
+get_clustersize (sbi: &fat_sb_info): int (clssz)
+
 
 ////
 fun
