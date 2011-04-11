@@ -46,7 +46,7 @@ cluster_kind =
 *)
 datasort
 cluster_kind =
- | CKnorm  // todo norm can be end or not
+ | CKnorm  // todo norm means not bad and not free
  | CKfree
  | CKend
  | CKbad

@@ -14,8 +14,14 @@ staload "myheader.sats"
 (* ***** ***** ***** *)
 staload "ats_fat_file.sats"
 staload UN = "prelude/SATS/unsafe.sats"
-
 macdef viewout_decode = $UN.viewout_decode
+
+
+staload
+UACC = "contrib/linux/asm/SATS/uaccess.sats"
+macdef clear_user = $UACC.clear_user
+macdef copy_to_user = $UACC.copy_to_user
+macdef copy_from_user = $UACC.copy_from_user
 
 implement fat_sync_read
  {l} {n} {ofs} (pfbuf | file , p , n , pos) = let
@@ -27,7 +33,7 @@ in
   in
     $UN.cast {ssize_t(~1)} (~1)
   end else let
-    val len = filesz - n
+    val len = (filesz - n)
 
     val (vo_inode | pinode') = inode_own2inode (!pinode)
     prval (pf_inode, fpf_inode) = viewout_decode (vo_inode)
@@ -54,6 +60,21 @@ in
       ncls: ncluster (CKnorm)
       ): #[len1:int | len1 <= len] ssize_t (len1)
       
+    extern fun copy_clusters
+      {l: addr} 
+      {n: nat}
+      {accu: nat}
+      {len: nat | len <= n}
+      {clsno: pos} (
+      pf_mul: MUL (clssz, clsno, len),
+      pfbuf: !bytes(n) @ l |
+      sb: &super_block,
+      p: $Basics.uptr l,
+      accu: &loff_t (accu) >> loff_t (accu + len1),
+      clsno: int clsno,
+      ncls: ncluster (CKnorm)
+      ): #[len1:nat | len1 <= len] void
+
     extern fun copy_block
       {l: addr} 
       {n: nat}
@@ -69,12 +90,32 @@ in
 
     val clssz = get_clustersize (!pfsb)
     prval () = clssz_pos ()
-    val ofs_cls = $UN.cast{uint}(pos) mod clssz
-    val no_cls = $UN.cast{uint}(pos) / $UN.cast{uint}(clssz)
+    var ofs_in_cls = $UN.cast{uint}(pos) mod clssz
+    val a = 1: int 1
 
-    val cls = get_first_cluster (!pfnode)
+(*
+    val len_in_cls = if ofs_in_cls + len > clssz then clssz - ofs_in_cls
+                     else len
+*)
+(*
+    val start_fcls = $UN.cast{uint}(pos) / $UN.cast{uint}(clssz)
+
+    val first_pcls = get_first_cluster (!pfnode)
     var n1: int ?
-    val cls = get_nth_cluster (cls, int1_of_int($UN.cast{int}(no_cls)), n1)
+    val start_pcls = get_nth_cluster (cls, int1_of_int($UN.cast{int}(no_cls)), n1)
+
+    val len1 = copy_cluster (pfbuf | sb, p, ofs_in_cls, len_in_cls, start_pcls)
+    // todo check the len1 < len_in_cls
+    var accu
+    
+
+    // prval (pf1, pf2) = bytes_v_split {n} {j} (pf)
+(*
+    prval () = verify_constraint {n-j > 0} ()
+*)
+    val nleft = copy_to_user (pfbuf | p, !(pqtm+j), cnt_ul)
+    // prval () = fpf (bytes_v_unsplit (pf1, pf2))
+ *)   
 
     
 
