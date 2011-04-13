@@ -14,9 +14,6 @@ staload UN = "prelude/SATS/unsafe.sats"
 
 staload Basics = "contrib/linux/basics.sats"
 
-// has been defined somewhere in ATS, where?
-// abst@ype ssize_t = $extype "ssize_t"
-
 abst@ype loff_t (ofs: int) = $extype "loff_t"
 typedef loff_t = [ofs: int] loff_t (ofs)
 
@@ -44,6 +41,24 @@ cluster_kind =
  | CKend
  | CKbad
 *)
+stadef FAT_ENT_FREE: int = 0
+stadef FAT_ENT_BAD: int = 0x0FFFFFF7
+stadef FAT_ENT_EOF: int = 0x0FFFFFFF
+
+typedef ncluster = [i: int | i >= 0] int i
+typedef ncluster_free = int (FAT_ENT_FREE)
+typedef ncluster_bad = int (FAT_ENT_BAD)
+typedef ncluster_notbad = 
+    [i:int| i <> FAT_ENT_BAD] int (i)
+
+typedef ncluster_norm = 
+    [i:int|i <> FAT_ENT_FREE; i <> FAT_ENT_BAD; i <> FAT_ENT_EOF] 
+    int (i)
+
+typedef ncluster_valid = 
+    [i:int| i <> FAT_ENT_BAD; i <> FAT_ENT_EOF] 
+    int (i)
+
 datasort
 cluster_kind =
  | CKnorm  // todo norm means not bad and not free
@@ -54,8 +69,8 @@ cluster_kind =
 
 sortdef ck = cluster_kind
 
-abst@ype ncluster (ck) = int
-typedef ncluster = [k:ck] ncluster (k)
+// abst@ype ncluster (ck) = int
+// typedef ncluster = [k:ck] ncluster (k)
 
 (* include/linux/msdos_fs.h *)
 #define FAT_START_ENT 2  // todo which is better? this line or next
@@ -72,21 +87,12 @@ viewtypedef inode = $extype_struct "inode_struct" of {
 
 viewtypedef inode_own = $extype_struct "inode_struct" of {
   empty = empty,
-  i_size = loff_t
+  i_size = [i:nat] loff_t i
 }
 
 viewtypedef super_block = $extype_struct "super_block_struct" of {
   empty = empty
 }
-
-fun cmp_loff_lt {m,n: int} (l: loff_t m, r: loff_t n): bool (m < n) 
-overload < with cmp_loff_lt
-
-fun cmp_loff_gt {m,n: int} (l: loff_t m, r: loff_t n): bool (m > n) 
-overload > with cmp_loff_lt
-
-fun arith_loff_minus_size {m,n: int} (l: loff_t m, r: size_t n): loff_t (m - n)
-overload - with arith_loff_minus_size
 
 viewtypedef fat_inode = $extype_struct "fat_inode_info_struct" of {
   empty = empty
@@ -94,14 +100,14 @@ viewtypedef fat_inode = $extype_struct "fat_inode_info_struct" of {
 
 viewtypedef fat_inode_own = $extype_struct "fat_inode_info_struct" of {
   empty = empty,
-  i_start = ncluster (CKnorm)
+  i_start = ncluster_valid
 }
 
 viewtypedef fat_sb_info = $extype_struct "fat_sb_info_struct" of {
   empty = empty,
-  sec_per_clus = uint,  // todo unsigned short
-  cluster_size = uint,  // toto unsigned int
-  data_start = uint  // todo unsigned long
+  sec_per_clus = usint,  // unsigned short
+  cluster_size = uint,  // unsigned int
+  data_start = ulint  // unsigned long
   
 }
 
@@ -115,6 +121,7 @@ ats_fat_sync_read(struct file *filp,
 *)
 
 
+// ssize_t is defined in prelude/SATS/sizetype.sats
 fun fat_sync_read
  {l:addr}
  {n:nat} 
@@ -177,18 +184,26 @@ fun sb2fat_sb (
  = "mac#atsfs_sb2fat_sb"
 
 fun get_first_cluster
- (node: &fat_inode): ncluster
+ (node: &fat_inode): ncluster_valid
 
 fun offset2cluster (ofs: &loff_t): intGte (0)
 
 fun get_next_cluster
- (cls: ncluster (CKnorm)): ncluster
+ (cls: ncluster_norm): ncluster
+
+fun get_next_cluster_err {err: int | err <= 0}
+ (cls: ncluster_norm,
+  err: &int err >> int err'): 
+  #[err': int | err' <= 0] ncluster
 
 fun get_nth_cluster {n:nat} (
- cls: ncluster (CKnorm), n: int n, n1: &int? >> int n1
+ cls: ncluster_norm, n: int n, n1: &int? >> int n1
 ) : #[n1:nat | n1 <= n] ncluster
 
-fun ncluster2block (sbi: &fat_sb_info, n: ncluster CKnorm): nblock
+fun ncluster2block (sbi: &fat_sb_info, n: ncluster_valid): nblock
+
+castfn ulint_of_usint (i: usint): ulint
+castfn nblock_of_ulint (i: ulint): nblock
 
 // fun get_next_block (n: nblock): nblock
 
@@ -206,17 +221,39 @@ fun bufferheadptr_free {l:agz} (bf: bufferheadptr l): void
 
 *)
 
-sta blksz : int  // todo unsigned long: see super_block in fs.h
+sta blksz : int
 sta clssz : int
 
 prfun blksz_pos (): [blksz > 0] void
 prfun clssz_pos (): [clssz > 0] void
 
+// unsigned long: see super_block in fs.h
 fun
-get_blocksize (sb: &super_block): int (blksz)
+get_blocksize (sb: &super_block): size_t (blksz)
 
 fun
-get_clustersize (sbi: &fat_sb_info): int (clssz)
+get_clustersize (sbi: &fat_sb_info): size_t (clssz)
+
+fun uptr_plus_size1 {l: addr} {m:nat} (
+  l: $Basics.uptr l, m: size_t m): $Basics.uptr (l + m)
+overload + with uptr_plus_size1
+
+
+fun cmp_loff_lt {m,n: int} (l: loff_t m, r: loff_t n): bool (m < n) 
+overload < with cmp_loff_lt
+
+fun cmp_loff_gt {m,n: int} (l: loff_t m, r: loff_t n): bool (m > n) 
+overload > with cmp_loff_lt
+
+fun arith_loff_minus_size {m,n: int} (l: loff_t m, r: size_t n): loff_t (m - n)
+overload - with arith_loff_minus_size
+
+fun arith_size_minus_loff {m,n: int} (l: size_t m, r: loff_t n): loff_t (m - n)
+overload - with arith_size_minus_loff
+
+castfn size1_of_loff1 {m: int| m >=0} (l: loff_t m): size_t (m)
+
+castfn loff1_of_int1 {i: int} (i: int i): loff_t i
 
 
 ////
