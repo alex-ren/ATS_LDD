@@ -14,6 +14,53 @@ staload UN = "prelude/SATS/unsafe.sats"
 
 staload Basics = "contrib/linux/basics.sats"
 
+abst@ype errno_t = int
+castfn int_of_errno (e: errno_t):<> [i:nat] int i
+overload int_of with int_of_errno
+castfn errno_of_int {i:nat} (i: int i):<> errno_t
+
+
+(* ****** ****** *)
+(* include/asm-generic/error-base.h *)
+(*
+#define	EPERM		 1	/* Operation not permitted */
+#define	ENOENT		 2	/* No such file or directory */
+#define	ESRCH		 3	/* No such process */
+#define	EINTR		 4	/* Interrupted system call */
+#define	EIO		 5	/* I/O error */
+#define	ENXIO		 6	/* No such device or address */
+#define	E2BIG		 7	/* Argument list too long */
+#define	ENOEXEC		 8	/* Exec format error */
+#define	EBADF		 9	/* Bad file number */
+#define	ECHILD		10	/* No child processes */
+#define	EAGAIN		11	/* Try again */
+#define	ENOMEM		12	/* Out of memory */
+#define	EACCES		13	/* Permission denied */
+#define	EFAULT		14	/* Bad address */
+#define	ENOTBLK		15	/* Block device required */
+#define	EBUSY		16	/* Device or resource busy */
+#define	EEXIST		17	/* File exists */
+#define	EXDEV		18	/* Cross-device link */
+#define	ENODEV		19	/* No such device */
+#define	ENOTDIR		20	/* Not a directory */
+#define	EISDIR		21	/* Is a directory */
+#define	EINVAL		22	/* Invalid argument */
+#define	ENFILE		23	/* File table overflow */
+#define	EMFILE		24	/* Too many open files */
+#define	ENOTTY		25	/* Not a typewriter */
+#define	ETXTBSY		26	/* Text file busy */
+#define	EFBIG		27	/* File too large */
+#define	ENOSPC		28	/* No space left on device */
+#define	ESPIPE		29	/* Illegal seek */
+#define	EROFS		30	/* Read-only file system */
+#define	EMLINK		31	/* Too many links */
+#define	EPIPE		32	/* Broken pipe */
+#define	EDOM		33	/* Math argument out of domain of func */
+#define	ERANGE		34	/* Math result not representable */
+*)
+(* copy from contrib/linux/linux/SATS/errno.sats *)
+macdef EIO = $extval (errno_t, "EFAULT")
+
 abst@ype loff_t (ofs: int) = $extype "loff_t"
 typedef loff_t = [ofs: int] loff_t (ofs)
 
@@ -41,9 +88,9 @@ cluster_kind =
  | CKend
  | CKbad
 *)
-stadef FAT_ENT_FREE: int = 0
-stadef FAT_ENT_BAD: int = 0x0FFFFFF7
-stadef FAT_ENT_EOF: int = 0x0FFFFFFF
+#define FAT_ENT_FREE  0
+#define FAT_ENT_BAD  0x0FFFFFF7
+#define FAT_ENT_EOF  0x0FFFFFFF
 
 typedef ncluster = [i: int | i >= 0] int i
 typedef ncluster_free = int (FAT_ENT_FREE)
@@ -191,11 +238,6 @@ fun offset2cluster (ofs: &loff_t): intGte (0)
 fun get_next_cluster
  (cls: ncluster_norm): ncluster
 
-fun get_next_cluster_err {err: int | err <= 0}
- (cls: ncluster_norm,
-  err: &int err >> int err'): 
-  #[err': int | err' <= 0] ncluster
-
 fun get_nth_cluster {n:nat} (
  cls: ncluster_norm, n: int n, n1: &int? >> int n1
 ) : #[n1:nat | n1 <= n] ncluster
@@ -243,7 +285,13 @@ fun cmp_loff_lt {m,n: int} (l: loff_t m, r: loff_t n): bool (m < n)
 overload < with cmp_loff_lt
 
 fun cmp_loff_gt {m,n: int} (l: loff_t m, r: loff_t n): bool (m > n) 
-overload > with cmp_loff_lt
+overload > with cmp_loff_gt
+
+fun arith_loff_plus_loff {m,n: int} (l: loff_t m, r: loff_t n): loff_t (m + n)
+overload + with arith_loff_plus_loff
+
+fun arith_loff_minus_loff {m,n: int} (l: loff_t m, r: loff_t n): loff_t (m - n)
+overload - with arith_loff_minus_loff
 
 fun arith_loff_minus_size {m,n: int} (l: loff_t m, r: size_t n): loff_t (m - n)
 overload - with arith_loff_minus_size
@@ -253,8 +301,15 @@ overload - with arith_size_minus_loff
 
 castfn size1_of_loff1 {m: int| m >=0} (l: loff_t m): size_t (m)
 
+castfn loff1_of_size1 {m: int} (l: size_t m): loff_t (m)
+
 castfn loff1_of_int1 {i: int} (i: int i): loff_t i
 
+fun loff_mod_loff {m,n: nat|n > 0} (
+  l: loff_t m, r: loff_t n): [k: nat | k < n] loff_t k
+overload mod with loff_mod_loff
+
+fun BUG_ON {b: bool} (b: bool b): [b == true] void
 
 ////
 fun

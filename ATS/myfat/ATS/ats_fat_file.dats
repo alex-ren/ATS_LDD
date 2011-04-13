@@ -53,82 +53,87 @@ extern fun copy_cluster_impl
   {pbuf: addr} 
   {n: nat}
   {ofs: nat}   // offset in cluster
-  {len: nat | len <= n; ofs + len <= clssz}
-  {err: int | err <= 0} (
+  {len: nat | len <= n; ofs + len <= clssz} (
   pf_buf: !bytes(n) @ pbuf |
   sb: &super_block,
   pbuf: $Basics.uptr pbuf,
   ofs: &loff_t (ofs),
   len: size_t (len),
   ncls: ncluster_valid,
-  err: &int err >> int err'
-  ): #[len1:nat | len1 <= len] 
-     #[err': int | err' <= 0] size_t len1
+  err: &errno_t
+  ): #[len1:nat | len1 <= len] size_t len1
 
 extern fun copy_clusters_impl
+  {pinode:addr}
   {pbuf: addr} 
   {n: nat}
   {ofs: nat | ofs < clssz}   // offset in current cluster
-  {len: nat | len < n}  // total length to be copied
-  {accu: nat}
-  {err: int | err <= 0} (
+  {len: nat | len <= n}  // total length to be copied
+  {accu: nat} (
+  pf_inode_r: !inode_own @ pinode,
   pf_buf: !bytes(n) @ pbuf |
   sb: &super_block,
   pbuf: $Basics.uptr pbuf,
   ofs: loff_t (ofs),
   len: size_t (len),
-  ncls: ncluster_valid,
+  ncls: ncluster_norm,
   clssz: size_t (clssz),
-  accu: &size_t (accu) >> size_t (accu + len1),
-  err: &int (err) >> int (err')  // last error
-  ): #[len1:nat | len1 <= len] #[err': int|err' <= 0] size_t (accu + len1)
+  accu: size_t (accu),
+  err: &errno_t  // last error
+  // ): #[accu', err': int | accu' >= accu; accu' - accu <= len; err' <=0] 
+  ): #[accu': int | accu' >= accu; accu' - accu <= len] 
+  size_t (accu')
 
 implement copy_clusters_impl
+  {pinode}
   {pbuf} {n}
   {ofs} {len} 
-  {accu} {err} (
-  pf_buf | sb, pbuf, ofs, len, ncls, clssz, accu, err) =
-  if err < 0 then err
-    // copy_clusters_impl{pbuf}{n}
-    //  {ofs}{len}{accu}{err} (pf_buf | sb, pbuf, ofs, len, ncls, clssz, accu, err)
+  {accu} (
+  pf_inode_r, pf_buf | sb, pbuf, ofs, len, ncls, clssz, accu, err) =
+  if int_of (err) <> 0 then accu
   else let
     val len1 = size1_of_loff1 (clssz - ofs)
     stavar len1: int
     val len1 = min (len, len1): size_t len1
-    prval (pf_buf1, pf_buf2) = bytes_v_split {n} {len1} (pf_buf)
-    val ret = copy_cluster_impl (pf_buf1 | sb, pbuf, ofs, len1, ncls, err)
-  
-    val () = accu := accu + ret
-    val ncls' = get_next_cluster_err (ncls, err)
-    val ret = copy_clusters_impl (pf_buf2 | 
-      sb, pbuf + len1, loff1_of_int1 (0), len - len1, ncls', clssz, accu, err)
-    prval () = pf_buf := bytes_v_unsplit (pf_buf1, pf_buf2)
+    val ret = copy_cluster_impl (pf_buf | sb, pbuf, ofs, len1, ncls, err)
+    val accu = accu + ret
   in
-    ret
+    if int_of (err) <> 0 then accu
+    else let
+      val ncls' = get_next_cluster (ncls)
+    in
+      if ncls' = FAT_ENT_FREE || ncls' = FAT_ENT_BAD || ncls' = FAT_ENT_EOF
+      then let
+        val () = err := EIO
+      in
+        accu
+      end
+      else let 
+        prval (pf_buf1, pf_buf2) = bytes_v_split {n} {len1} (pf_buf)
+        val ret = copy_clusters_impl (pf_inode_r, pf_buf2 | 
+          sb, pbuf + len1, loff1_of_int1 (0), len - len1, ncls', clssz, accu, err)
+        prval () = pf_buf := bytes_v_unsplit (pf_buf1, pf_buf2)
+      in
+        ret
+      end
+    end
   end
-////
 
-
-
-
-
-
-
-
-
-      
 implement fat_sync_read
  {l} {n} {ofs} (pfbuf | file , p , n , pos) = let
   val (v_inode | pinode) = file2inode_acquire (file)
-  val filesz = (pinode->i_size)
+  stavar filesz: int
+  val filesz = (pinode->i_size): loff_t filesz
 in
-  if pos > filesz then let
+  if (pos > filesz) = true then let
     val () = file2inode_release (v_inode | pinode)
   in
-    ssize1_of_int1 (~1)
+    ssize1_of_int1 (~int_of (EIO))
   end else let
-    val len = (filesz - n)
+    val len = (filesz - pos)
+    val len = min (size1_of_loff1 (len), n)
 
+    (* get all the views needed *)
     val (vo_inode | pinode') = inode_own2inode (!pinode)
     prval (pf_inode, fpf_inode) = viewout_decode (vo_inode)
 
@@ -138,63 +143,34 @@ in
     val (vo_sb | psb) = inode2sb (!pinode)
     prval (pf_sb, fpf_sb) = viewout_decode (vo_sb)
 
-    val (vo_fsb | pfsb) = sb2fat_sb (!psb)
-    prval (pf_fsb, fpf_fsb) = viewout_decode (vo_fsb)
-    
-    extern fun copy_clusters
-      {l: addr} 
-      {n: nat}
-      {accu: nat}
-      {len: nat | len <= n}
-      {clsno: pos} (
-      pf_mul: MUL (clssz, clsno, len),
-      pfbuf: !bytes(n) @ l |
-      sb: &super_block,
-      p: $Basics.uptr l,
-      accu: &loff_t (accu) >> loff_t (accu + len1),
-      clsno: int clsno,
-      ncls: ncluster_valid
-      ): #[len1:nat | len1 <= len] void
+    val (vo_sbi | psbi) = sb2fat_sb (!psb)
+    prval (pf_sbi, fpf_sbi) = viewout_decode (vo_sbi)
+    // end of [getting view]
 
-    val clssz = get_clustersize (!pfsb)
+    val clssz = get_clustersize (!psbi)
     prval () = clssz_pos ()
-    // var ofs_in_cls = $UN.cast{uint}(pos) mod clssz
-    val a = 1: int 1
-
-(*
-    val len_in_cls = if ofs_in_cls + len > clssz then clssz - ofs_in_cls
-                     else len
-*)
-(*
-    val start_fcls = $UN.cast{uint}(pos) / $UN.cast{uint}(clssz)
-
-    val first_pcls = get_first_cluster (!pfnode)
-    var n1: int ?
-    val start_pcls = get_nth_cluster (cls, int1_of_int($UN.cast{int}(no_cls)), n1)
-
-    val len1 = copy_cluster (pfbuf | sb, p, ofs_in_cls, len_in_cls, start_pcls)
-    // todo check the len1 < len_in_cls
-    var accu
+    val pos_cls = pos mod loff1_of_size1 (clssz)
     
+    val ncls = get_first_cluster (!pfnode)
+    val () = BUG_ON (ncls <> FAT_ENT_FREE)
+    var accu = 0: size_t 0
+    var err = errno_of_int 0
+    val ret = copy_clusters_impl (v_inode, pfbuf |
+      !psb, p, pos_cls, len, ncls, clssz, accu, err) 
 
-    // prval (pf1, pf2) = bytes_v_split {n} {j} (pf)
-(*
-    prval () = verify_constraint {n-j > 0} ()
-*)
-    val nleft = copy_to_user (pfbuf | p, !(pqtm+j), cnt_ul)
-    // prval () = fpf (bytes_v_unsplit (pf1, pf2))
- *)   
+    val () = pos := pos + loff1_of_size1 (ret)
 
-    
-
-
+    (* return all the views *)
     prval () = fpf_fnode (pf_fnode)
     prval () = fpf_sb (pf_sb)
-    prval () = fpf_fsb (pf_fsb)
+    prval () = fpf_sbi (pf_sbi)
     prval () = fpf_inode (pf_inode)
+    // end of [return views]
+
     val () = file2inode_release (v_inode | pinode)
   in
-    $UN.cast {ssize_t(0)} (0)
+    if ret > 0 then ssize1_of_size1 (ret)
+    else ssize1_of_int1 (~int_of_errno (err))
   end
 end
 
