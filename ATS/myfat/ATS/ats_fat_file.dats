@@ -24,10 +24,12 @@ macdef copy_to_user = $UACC.copy_to_user
 macdef copy_from_user = $UACC.copy_from_user
 
 extern fun copy_block
+  {pinode:addr}
   {l: addr} 
   {n: nat}
   {ofs: nat}   // offset in block
   {len: nat | len <= n; ofs + len <= blksz}(
+  pf_inode_r: !inode_own @ pinode,
   pfbuf: !bytes(n) @ l |
   sb: &super_block,
   p: $Basics.uptr l,
@@ -36,24 +38,35 @@ extern fun copy_block
   nblk: nblock
   ): #[len1:int | len1 <= len] ssize_t (len1)
 
-extern fun copy_cluster
-  {l: addr} 
+extern fun copy_blocks_impl
+  {pinode:addr}
+  {pbuf: addr} 
   {n: nat}
-  {ofs: nat}   // offset in cluster
-  {len: nat | len <= n; ofs + len <= clssz}(
-  pfbuf: !bytes(n) @ l |
+  {ofs: nat | ofs < blksz}   // offset in current block
+  {len: nat | len <= n}  // total length to be copied
+  {nblk: nat}
+  {accu: nat} (
+  pf_inode_r: !inode_own @ pinode,
+  pf_buf: !bytes(n) @ pbuf |
   sb: &super_block,
-  p: $Basics.uptr l,
-  pos: &loff_t (ofs),
+  pbuf: $Basics.uptr pbuf,
+  ofs: loff_t (ofs),
   len: size_t (len),
-  ncls: ncluster_valid
-  ): #[len1:int | len1 <= len] ssize_t (len1)
+  nblk: int nblk,
+  blksz: size_t (blksz),
+  accu: size_t (accu),
+  err: &errno_t  // last error
+  // ): #[accu', err': int | accu' >= accu; accu' - accu <= len; err' <=0] 
+  ): #[accu': int | accu' >= accu; accu' - accu <= len] 
+  size_t (accu')
 
 extern fun copy_cluster_impl
+  {pinode:addr}
   {pbuf: addr} 
   {n: nat}
   {ofs: nat}   // offset in cluster
   {len: nat | len <= n; ofs + len <= clssz} (
+  pf_inode_r: !inode_own @ pinode,
   pf_buf: !bytes(n) @ pbuf |
   sb: &super_block,
   pbuf: $Basics.uptr pbuf,
@@ -95,7 +108,7 @@ implement copy_clusters_impl
     val len1 = size1_of_loff1 (clssz - ofs)
     stavar len1: int
     val len1 = min (len, len1): size_t len1
-    val ret = copy_cluster_impl (pf_buf | sb, pbuf, ofs, len1, ncls, err)
+    val ret = copy_cluster_impl (pf_inode_r, pf_buf | sb, pbuf, ofs, len1, ncls, err)
     val accu = accu + ret
   in
     if int_of (err) <> 0 then accu
