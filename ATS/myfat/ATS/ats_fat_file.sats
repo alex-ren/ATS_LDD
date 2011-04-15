@@ -14,11 +14,18 @@ staload UN = "prelude/SATS/unsafe.sats"
 
 staload Basics = "contrib/linux/basics.sats"
 
-abst@ype errno_t = int
+(* ============================================= *)
+abst@ype errno_t (int) = int
+typedef errno_t = [i: nat] errno_t i
 castfn int_of_errno (e: errno_t):<> [i:nat] int i
-overload int_of with int_of_errno
+castfn int1_of_errno1 {i: nat} (e: errno_t i):<> int i
+overload int_of with int1_of_errno1
 castfn errno_of_int {i:nat} (i: int i):<> errno_t
 
+(* really ugly *)
+dataprop error_ret (int, int) =
+| {e: pos} error_ret_pos (e, 0)
+| {r: int} error_ret_any (0, r)
 
 (* ****** ****** *)
 (* include/asm-generic/error-base.h *)
@@ -59,11 +66,15 @@ castfn errno_of_int {i:nat} (i: int i):<> errno_t
 #define	ERANGE		34	/* Math result not representable */
 *)
 (* copy from contrib/linux/linux/SATS/errno.sats *)
-macdef EIO = $extval (errno_t, "EFAULT")
+macdef EIO = $extval ([i: pos] errno_t i, "EFAULT")
+(* ============================================= *)
 
+(* ============================================= *)
 abst@ype loff_t (ofs: int) = $extype "loff_t"
 typedef loff_t = [ofs: int] loff_t (ofs)
+(* ============================================= *)
 
+(* ============================================= *)
 (*
 /* bad cluster mark */
 #define BAD_FAT12	0xFF7
@@ -106,27 +117,24 @@ typedef ncluster_valid =
     [i:int| i <> FAT_ENT_BAD; i <> FAT_ENT_EOF] 
     int (i)
 
-datasort
-cluster_kind =
- | CKnorm  // todo norm means not bad and not free
- | CKfree
- | CKend
- | CKbad
-// todo how to specify both norm and free
-
-sortdef ck = cluster_kind
-
-// abst@ype ncluster (ck) = int
-// typedef ncluster = [k:ck] ncluster (k)
-
 (* include/linux/msdos_fs.h *)
 #define FAT_START_ENT 2  // todo which is better? this line or next
 // #define FAT_START_ENT $extval (ncluster, "FAT_START_ENT")
+(* ============================================= *)
 
+(* ============================================= *)
 abst@ype nblock = $extype "sector_t"
 viewtypedef file = $extype_struct "file_struct" of {
   empty = empty
 }
+
+sta blksz : int
+sta clssz : int
+
+prfun blksz_pos (): [blksz > 0] void
+prfun clssz_pos (): [clssz > 0] void
+
+(* ============================================= *)
 
 viewtypedef inode = $extype_struct "inode_struct" of {
   empty = empty
@@ -158,6 +166,7 @@ viewtypedef fat_sb_info = $extype_struct "fat_sb_info_struct" of {
   
 }
 
+(* ============================================= *)
 (*
 ssize_t
 ats_fat_sync_read(struct file *filp,
@@ -166,12 +175,10 @@ ats_fat_sync_read(struct file *filp,
  return 0;
 }
 *)
-
-
 // ssize_t is defined in prelude/SATS/sizetype.sats
 fun fat_sync_read
  {l:addr}
- {n:nat} 
+ {n:pos} 
  {ofs:nat} (
  pfbuf: !bytes(n) @ l |
  file: &file
@@ -180,6 +187,82 @@ fun fat_sync_read
 , pos: &loff_t (ofs) >> loff_t (ofs + max(0,n1))
 ) : #[n1:int | n1 <= n] ssize_t (n1) = "atsfs_fat_sync_read"
 
+fun copy_clusters_impl
+  {pinode:addr}
+  {pbuf: addr} 
+  {n: nat}
+  {ofs: nat | ofs < clssz}   // offset in current cluster
+  {len: pos | len <= n}  // total length to be copied
+  {accu: nat}
+  {e: nat} (
+  pf_inode_r: !inode_own @ pinode,
+  pf_buf: !bytes(n) @ pbuf |
+  sb: &super_block,
+  pbuf: $Basics.uptr pbuf,
+  ofs: loff_t (ofs),
+  len: size_t (len),
+  ncls: ncluster_norm,
+  clssz: size_t (clssz),
+  accu: size_t (accu),
+  err: &(errno_t e) >> errno_t  // last error
+  ): #[accu': int | accu' >= accu; accu' - accu <= len] 
+  (error_ret (e, accu' - accu) | size_t (accu'))
+
+fun copy_cluster_impl
+  {pinode:addr}
+  {pbuf: addr} 
+  {n: nat}
+  {ofs: nat}   // offset in cluster
+  {len: pos | len <= n; ofs + len <= clssz}
+  {e: nat} (
+  pf_inode_r: !inode_own @ pinode,
+  pf_buf: !bytes(n) @ pbuf |
+  sb: &super_block,
+  pbuf: $Basics.uptr pbuf,
+  ofs: &loff_t (ofs),
+  len: size_t (len),
+  ncls: ncluster_valid,
+  err: &errno_t e >> errno_t
+  ): #[len1:nat | len1 <= len] size_t len1
+
+fun copy_phyblocks_impl
+  {pinode:addr}
+  {pbuf: addr} 
+  {n: nat}
+  {ofs: nat | ofs < blksz}   // offset in current block
+  {len: pos | len <= n}  // total length to be copied
+  {accu: nat} 
+  {e: nat} (
+  pf_inode_r: !inode_own @ pinode,
+  pf_buf: !bytes(n) @ pbuf |
+  sb: &super_block,
+  pbuf: $Basics.uptr pbuf,
+  ofs: loff_t (ofs),
+  len: size_t (len),
+  pnblk: nblock,  // starting number of physical block
+  blksz: size_t (blksz),
+  accu: size_t (accu),
+  err: &errno_t e >> errno_t  // last error
+  ): #[accu': int | accu' >= accu; accu' - accu <= len] 
+  size_t (accu')
+
+fun copy_phyblock_impl
+  {pinode:addr}
+  {pbuf: addr} 
+  {n: nat}
+  {ofs: nat}   // offset in cluster
+  {len: pos | len <= n; ofs + len <= blksz} (
+  pf_inode_r: !inode_own @ pinode,
+  pf_buf: !bytes(n) @ pbuf |
+  sb: &super_block,
+  pbuf: $Basics.uptr pbuf,
+  ofs: &loff_t (ofs),
+  len: size_t (len),
+  nblk: nblock,
+  err: &errno_t 0 >> errno_t
+  ): #[len1:nat | len1 <= len] size_t len1
+
+(* ============================================= *)
 fun file2inode (
  file: &file
 ) : [l:addr] ($UN.viewout (inode @ l) | ptr l)
@@ -230,44 +313,7 @@ fun sb2fat_sb (
 ) : [l:addr] ($UN.viewout (fat_sb_info @ l) | ptr l)
  = "mac#atsfs_sb2fat_sb"
 
-fun get_first_cluster
- (node: &fat_inode): ncluster_valid
-
-fun offset2cluster (ofs: &loff_t): intGte (0)
-
-fun get_next_cluster
- (cls: ncluster_norm): ncluster
-
-fun get_nth_cluster {n:nat} (
- cls: ncluster_norm, n: int n, n1: &int? >> int n1
-) : #[n1:nat | n1 <= n] ncluster
-
-fun ncluster2block (sbi: &fat_sb_info, n: ncluster_valid): nblock
-
-castfn ulint_of_usint (i: usint): ulint
-castfn nblock_of_ulint (i: ulint): nblock
-
-// fun get_next_block (n: nblock): nblock
-
-(*
-sbread: read a block
-*)
-
-absviewtype bufferheadptr (l:addr)
-
-fun bufferheadptr_free_null
- (bf: bufferheadptr null): void = "mac#atspre_ptr_free_null"
-fun bufferheadptr_free {l:agz} (bf: bufferheadptr l): void
-
-(*
-
-*)
-
-sta blksz : int
-sta clssz : int
-
-prfun blksz_pos (): [blksz > 0] void
-prfun clssz_pos (): [clssz > 0] void
+(* ============================================= *)
 
 // unsigned long: see super_block in fs.h
 fun
@@ -275,6 +321,34 @@ get_blocksize (sb: &super_block): size_t (blksz)
 
 fun
 get_clustersize (sbi: &fat_sb_info): size_t (clssz)
+
+(* ============================================= *)
+
+fun get_first_cluster
+ (node: &fat_inode): ncluster_valid
+
+fun get_next_cluster
+ (cls: ncluster_norm): ncluster
+
+fun get_nth_cluster {n:nat} (
+ cls: ncluster_norm, n: int n, n1: &int? >> int n1
+) : #[n1:nat | n1 <= n] ncluster_norm
+
+fun ncluster2block (sbi: &fat_sb_info, n: ncluster_valid): nblock
+
+(* ============================================= *)
+
+castfn ulint_of_usint (i: usint): ulint
+castfn nblock_of_ulint (i: ulint): nblock
+
+fun nblock_plus_loff_t {k: int} (nblk: nblock, k: loff_t k): nblock
+overload + with nblock_plus_loff_t
+
+absviewtype bufferheadptr (l:addr)
+
+fun bufferheadptr_free_null
+ (bf: bufferheadptr null): void = "mac#atspre_ptr_free_null"
+fun bufferheadptr_free {l:agz} (bf: bufferheadptr l): void
 
 fun uptr_plus_size1 {l: addr} {m:nat} (
   l: $Basics.uptr l, m: size_t m): $Basics.uptr (l + m)
@@ -286,6 +360,9 @@ overload < with cmp_loff_lt
 
 fun cmp_loff_gt {m,n: int} (l: loff_t m, r: loff_t n): bool (m > n) 
 overload > with cmp_loff_gt
+
+fun cmp_loff_gte {m,n: int} (l: loff_t m, r: loff_t n): bool (m >= n) 
+overload >= with cmp_loff_gte
 
 fun arith_loff_plus_loff {m,n: int} (l: loff_t m, r: loff_t n): loff_t (m + n)
 overload + with arith_loff_plus_loff
@@ -304,12 +381,25 @@ castfn size1_of_loff1 {m: int| m >=0} (l: loff_t m): size_t (m)
 castfn loff1_of_size1 {m: int} (l: size_t m): loff_t (m)
 
 castfn loff1_of_int1 {i: int} (i: int i): loff_t i
+castfn int1_of_loff1 {i: int} (i: loff_t i): int i
+
+castfn ulint1_of_size1 {i: nat} (i: size_t i): ulint i
+
+fun loff_ldiv_loff {num,den: nat| den > 0} (
+  num: loff_t num, den: loff_t den, 
+  q: &loff_t ? >> loff_t q,
+  r: &loff_t ? >> loff_t r): 
+  #[q, r, x: nat | x + r == num; r < den] (
+  MUL (den, q, x) | loff_t q)
 
 fun loff_mod_loff {m,n: nat|n > 0} (
   l: loff_t m, r: loff_t n): [k: nat | k < n] loff_t k
 overload mod with loff_mod_loff
 
 fun BUG_ON {b: bool} (b: bool b): [b == true] void
+
+fun sbread (sb: &super_block, nblk: nblock): 
+  [l: addr] (option_v ($UN.viewout (bytes (blksz) @ l), l > null) | ptr l)
 
 ////
 fun
