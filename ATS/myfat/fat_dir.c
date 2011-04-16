@@ -87,11 +87,18 @@ next:
 
 /*
 * Desc: 
+*   1. If *bh and *de are not null and *(de + 1) is still in the bh
+*   then move pos and de to the next entry
+*   2. fill bh and de, let (*de) points to the entry designated by
+*   pos, then increase pos
 * Para:
 *   InOut:
 *   pos: the offset (in byte) of the entry in the whole dir file
 * Info:
 *   This function may alloc memory and put it into bh
+*   After the function call, the *pos is always one entry ahead of
+*   *de. We can keep calling this function to enumerate all the
+*   entries in the file.
 */
 static inline int fat_get_entry(struct inode *dir, loff_t *pos,
 				struct buffer_head **bh,
@@ -116,6 +123,8 @@ static int fat_get_short_entry(struct inode *dir, loff_t *pos,
 {
 	while (fat_get_entry(dir, pos, bh, de) >= 0) {
 		/* free entry or long name entry or volume label */
+                /* the file for root directory has a special entry containing the volume id
+                   of the volume */
 		if (!IS_FREE((*de)->name) && !((*de)->attr & ATTR_VOLUME/*volume id*/))
 			return 0;
 	}
@@ -291,6 +300,10 @@ fat_short2lower_uni(struct nls_table *t, unsigned char *c, int clen, wchar_t *un
 	return charlen;
 }
 
+/*
+* Desc: 
+*
+*/
 static inline int
 fat_shortname2uni(struct nls_table *nls, unsigned char *buf, int buf_size,
 		  wchar_t *uni_buf, unsigned short opt, int lower)
@@ -437,7 +450,9 @@ static int __fat_readdir(struct inode *inode, struct file *filp, void *dirent,
         // holding the UTF-8 of short name translated from bufuname
         unsigned char *ptname = bufname;
 	
-	// translate short name: work -> bufuname -> bufname
+	// translate short name: work -> bufuname (unicode) -> bufname (utf-8)
+        //                       work -> bufname
+        // if vfat then choose the first path, else the second
 	
 	unsigned short opt_shortname = sbi->options.shortname;
 	int isvfat = sbi->options.isvfat;
@@ -463,7 +478,7 @@ static int __fat_readdir(struct inode *inode, struct file *filp, void *dirent,
 		if (cpos == 2) {
 			dummy = 2;
 			furrfu = &dummy;
-			cpos = 0;
+			cpos = 0;  // reset to 0 to start enumerate all the real directories
 		}
 	}
 	if (cpos & (sizeof(struct msdos_dir_entry) - 1)) {
@@ -494,6 +509,7 @@ parse_record:
 	}
 
 	if (isvfat && de->attr == ATTR_EXT) {
+        // handle slots for long name
 		int status = fat_parse_long(inode, &cpos, &bh, &de,
 					    &unicode, &nr_slots);
 		if (status < 0) {
@@ -510,6 +526,9 @@ parse_record:
 		if (nr_slots) {
 			void *longname = unicode + FAT_MAX_UNI_CHARS;
 			int size = PATH_MAX - FAT_MAX_UNI_SIZE;
+                        // this is a hack, since the unicode points to a chunk of
+                        // memory of length PATH_MAX, we reuse its tail part to
+                        // hold the converted long name (UTF-8)
 			int len = fat_uni_to_x8(sbi, unicode, longname, size);
 
 			fill_name = longname;
@@ -540,6 +559,7 @@ parse_record:
 					&bufuname[j++], opt_shortname,
 					de->lcase & CASE_LOWER_BASE);
 		if (chl <= 1) {
+                        // copy one character, c (ascii) is from work
 			ptname[i++] = (!nocase && c>='A' && c<='Z') ? c+32 : c;
 			if (c != ' ') {
 				last = i;
@@ -547,6 +567,7 @@ parse_record:
 			}
 		} else {
 			last_u = j;
+                        // copy multiple characters
 			for (chi = 0; chi < chl && i < 8; chi++) {
 				ptname[i] = work[i];
 				i++; last = i;
@@ -592,10 +613,11 @@ parse_record:
 		/* hack for fat_ioctl_filldir() */
 		struct fat_ioctl_filldir_callback *p = dirent;
 
-		p->longname = fill_name;
+		p->longname = fill_name;  // points to long name (utf-8)
 		p->long_len = fill_len;
-		p->shortname = bufname;
+		p->shortname = bufname;  // points to short name (utf-8)
 		p->short_len = i;
+                // set fill_name to NULL, compare this to what's in else
 		fill_name = NULL;
 		fill_len = 0;
 	} else {
@@ -605,16 +627,19 @@ parse_record:
 
 start_filldir:
 	// lpos points to the address of the first slot
+        // a long name includes slots for long name and a slot for
+        // short name
 	lpos = cpos - (nr_slots + 1) * sizeof(struct msdos_dir_entry);
 	if (!memcmp(de->name, MSDOS_DOT, MSDOS_NAME))
 		inum = inode->i_ino;
 	else if (!memcmp(de->name, MSDOS_DOTDOT, MSDOS_NAME)) {
 		inum = parent_ino(filp->f_path.dentry);
 	} else {
-		// i_pos = the offset of this dir entry [address of the slot for short name] in the
-		// whole file
+		// i_pos = the offset of this dir entry [address of the 
+                // slot for short name] in the whole file
 		loff_t i_pos = fat_make_i_pos(sb, bh, de);
-		// get inode no. of the file based on the offset of its dir entry in the parent file [which is surely a dir]
+		// get inode no. of the file based on the offset of its dir
+                // entry in the parent file [which is surely a dir]
 		struct inode *tmp = fat_iget(sb, i_pos);
 		if (tmp) {
 			inum = tmp->i_ino;
@@ -625,12 +650,18 @@ start_filldir:
 
 	// buffer, buffer for dir name, length of dir name, 
 	// starting address of the dir entry in the file, inode no. attributes
+
+        // What furrfu is used for is still not very clear!!!!
+
+        // furrfu may point to dummy which is 2 or lpos which is the address of
+        // the current entry in the file
 	if (filldir(dirent, fill_name, fill_len, *furrfu, inum,
 		    (de->attr & ATTR_DIR) ? DT_DIR : DT_REG) < 0)
 		goto fill_failed;
 
 record_end:
-	furrfu = &lpos;
+	furrfu = &lpos;  // furrfu points to a variable holding the address  
+                         // of the current entry
 	filp->f_pos = cpos;
 	goto get_new;
 end_of_dir:

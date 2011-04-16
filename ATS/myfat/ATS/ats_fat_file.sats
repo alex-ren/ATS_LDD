@@ -281,6 +281,7 @@ fun file2inode_release {l: addr} (
 fun inode_own2inode (
   node: &inode_own
 ) : [l:addr] ($UN.viewout (inode @ l) | ptr l)
+= "mac#atsfs_inode_own2inode"
 
 fun inode2fat_inode (
  node: &inode
