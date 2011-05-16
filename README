@@ -1,11 +1,38 @@
 -- How to create a file for loopback.
   >> dd if=/dev/zero of=/virtualfs bs=1024 count=307200
 
+
 -- use loopon.sh / loopdown.sh to connect the loop device with the file
+
 
 -- format the block device
   >> mkfs.msdos -F 32 /dev/loop0
 
+
 -- use starttest.sh / stoptest.sh to do the test
+
+
+-- Description of directories
+  C/myfat was taken from linux source kernel_2.6.32-5-686_debian/fs/fat. 
+
+  The Makefile has been modifed so that three modules are generated: 
+  "myfat" (originally fat), "myvfat" (originally vfat) and "mymsdos" (originally msdos).
+
+  Source files have to modifed to add trace. And the generated modules contains
+  file system type "mymsdos" (originally msdos) "myvfat" (originally vfat).
+
+
+  ATS/myfat_test
+  This directory is built based on C/myfat. Basically I added more trace. I create this
+  directory so that I can do some run-time test on the original fat module. I should freeze
+  this directory except for add some more traces to certain files.
+
+
+  ATS/myfat2
+  The C files are written based on linux fat source code. I rerranged the files, removed
+  certain functionality to make the files as simple as I can so that this directory can
+  serve as a starting point for the ATS driver. The idea is to move part of the directory
+  into ATS code gradually. Basically I should freeze the directory now.
+
 
 
