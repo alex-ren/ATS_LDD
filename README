@@ -27,6 +27,9 @@
   directory so that I can do some run-time test on the original fat module. I should freeze
   this directory except for add some more traces to certain files.
 
+  messages_mount_unmount.txt and messages_simp.txt contains the trace for simply mount
+  the file system, "cd" into directory, "cat" files and then unmount the file system.
+
 
   ATS/myfat2
   The C files are written based on linux fat source code. I rerranged the files, removed

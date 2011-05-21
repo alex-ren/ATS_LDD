@@ -227,22 +227,23 @@ implement copy_phyblock_impl
   nblk,
   err
   ) = let
-  val [l: addr] (pfopt | pblock) = sbread (sb, nblk)
+  val [b: bool] bhptr_opt = sbread (sb, nblk)
 in
-  if pblock > null then let
-    prval Some_v pfout = pfopt
-    prval (pf, fpf) = viewout_decode (pfout)
+  case+ bhptr_opt of
+  | ~Some_vt (bhptr) => let
+    val (minus, pf | pblock) = bufferheadptr_get_buf (bhptr)
     
     prval (pf1, pf2) = bytes_v_split {blksz}{ofs} (pf)
     val nleft = copy_to_user (pf_buf | 
       pbuf, !(pblock + int1_of_loff1 (ofs)), ulint1_of_size1 (len))
     prval pf = bytes_v_unsplit (pf1, pf2)
     val () = err := (if size1_of_ulint1 (nleft) < len then EIO else err)
-    prval () = fpf (pf)
+    prval () = minus_addback (minus, pf | bhptr)
+    val () = bufferheadptr_free (bhptr)
   in
     size1_of_ulint1 (nleft)
-  end else let
-    prval None_v () = pfopt
+  end 
+  | ~None_vt () => let
     val () = err := EIO
   in
     size1_of_int1 (0)

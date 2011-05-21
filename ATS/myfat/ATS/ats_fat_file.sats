@@ -166,6 +166,11 @@ viewtypedef fat_sb_info = $extype_struct "fat_sb_info_struct" of {
   
 }
 
+viewtypedef buffer_head = $extype_struct "buffer_head_struct" of {
+  empty = empty,
+  b_data = [l: addr | l > null] ptr l
+}
+
 (* ============================================= *)
 (*
 ssize_t
@@ -291,7 +296,7 @@ fun inode2fat_inode (
 fun inode2fat_inode_own (
  node: &inode_own
 ) : [l:addr] ($UN.viewout (fat_inode @ l) | ptr l)
- = "mac#atsfs_inode2fat_inode_own"
+ = "mac#atsfs_inode2fat_inode"
 
 symintr inode2sb
 
@@ -319,6 +324,7 @@ fun sb2fat_sb (
 // unsigned long: see super_block in fs.h
 fun
 get_blocksize (sb: &super_block): size_t (blksz)
+ = "mac#atsfs_get_blocksize"
 
 fun
 get_clustersize (sbi: &fat_sb_info): size_t (clssz)
@@ -345,11 +351,24 @@ castfn nblock_of_ulint (i: ulint): nblock
 fun nblock_plus_loff_t {k: int} (nblk: nblock, k: loff_t k): nblock
 overload + with nblock_plus_loff_t
 
+(* ******************* ********************* *)
+
 absviewtype bufferheadptr (l:addr)
 
-fun bufferheadptr_free_null
- (bf: bufferheadptr null): void = "mac#atspre_ptr_free_null"
+fun sbread (sb: &super_block, nblk: nblock): 
+  [b: bool] (option_vt ([l: addr | l > null] (bufferheadptr l), b))
+
+// fun bufferheadptr_free_null
+//  (bf: bufferheadptr null): void = "mac#atspre_ptr_free_null"
+
 fun bufferheadptr_free {l:agz} (bf: bufferheadptr l): void
+
+fun
+bufferheadptr_get_buf {l:agz}(
+ p: !bufferheadptr l
+) : (minus (bufferheadptr l, bytes (blksz) @ l), bytes (blksz) @ l | ptr l)
+
+(* ******************* ********************* *)
 
 fun uptr_plus_size1 {l: addr} {m:nat} (
   l: $Basics.uptr l, m: size_t m): $Basics.uptr (l + m)
@@ -357,24 +376,31 @@ overload + with uptr_plus_size1
 
 
 fun cmp_loff_lt {m,n: int} (l: loff_t m, r: loff_t n): bool (m < n) 
+= "mac#atsfs_cmp_loff_lt"
 overload < with cmp_loff_lt
 
 fun cmp_loff_gt {m,n: int} (l: loff_t m, r: loff_t n): bool (m > n) 
+= "mac#atsfs_cmp_loff_gt"
 overload > with cmp_loff_gt
 
 fun cmp_loff_gte {m,n: int} (l: loff_t m, r: loff_t n): bool (m >= n) 
+= "mac#atsfs_cmp_loff_gte"
 overload >= with cmp_loff_gte
 
 fun arith_loff_plus_loff {m,n: int} (l: loff_t m, r: loff_t n): loff_t (m + n)
+= "mac#atsfs_arith_loff_plus_loff"
 overload + with arith_loff_plus_loff
 
 fun arith_loff_minus_loff {m,n: int} (l: loff_t m, r: loff_t n): loff_t (m - n)
+= "mac#atsfs_arith_loff_minus_loff"
 overload - with arith_loff_minus_loff
 
 fun arith_loff_minus_size {m,n: int} (l: loff_t m, r: size_t n): loff_t (m - n)
+= "mac#atsfs_arith_loff_minus_size"
 overload - with arith_loff_minus_size
 
 fun arith_size_minus_loff {m,n: int} (l: size_t m, r: loff_t n): loff_t (m - n)
+= "mac#atsfs_arith_size_minus_loff"
 overload - with arith_size_minus_loff
 
 castfn size1_of_loff1 {m: int| m >=0} (l: loff_t m): size_t (m)
@@ -392,22 +418,15 @@ fun loff_ldiv_loff {num,den: nat| den > 0} (
   r: &loff_t ? >> loff_t r): 
   #[q, r, x: nat | x + r == num; r < den] (
   MUL (den, q, x) | loff_t q)
+= "mac#atsfs_loff_ldiv_loff"
 
 fun loff_mod_loff {m,n: nat|n > 0} (
   l: loff_t m, r: loff_t n): [k: nat | k < n] loff_t k
+= "mac#atsfs_loff_mod_loff"
 overload mod with loff_mod_loff
 
 fun BUG_ON {b: bool} (b: bool b): [b == true] void
-
-fun sbread (sb: &super_block, nblk: nblock): 
-  [l: addr] (option_v ($UN.viewout (bytes (blksz) @ l), l > null) | ptr l)
-
-////
-fun
-bufferheadptr_get_buf {l:addr}(
- p: bufferheadptr l
-) : (minus (bufferheadptr l, bytes_v (blksz) | ptr l))
-
+= "mac#BUG_ON"
 
 
 
