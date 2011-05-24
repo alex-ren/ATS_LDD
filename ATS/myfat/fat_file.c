@@ -1,10 +1,12 @@
 #include "fat_file.h"
 #include "fat_dir.h"
 
+#include "ATS/ats_fat_file.h"
+
 static ssize_t fat_sync_read(struct file *filp, 
     char __user *buf, size_t len, loff_t *ppos)
 {
-    return 0;
+    return atsfs_fat_sync_read(filp, buf, len, ppos);
 }
 
 const struct file_operations fat_dir_operations = {

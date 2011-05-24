@@ -9,11 +9,33 @@
 (* ****** ****** *)
 
 %{#
-#include "contrib/linux/include/ats_types.h"
+// #include "contrib/linux/include/ats_types.h"
 #include "contrib/linux/include/ats_basics.h"
 #include "contrib/linux/include/ats_memory.h"
+
+#include "ATS/include/atsfs_types.h"
+
+
+#include "contrib/linux/CATS/array.cats"
+#include "contrib/linux/CATS/integer.cats"
+#include "contrib/linux/CATS/pointer.cats"
+#include "contrib/linux/CATS/sizetype.cats"
+
+#include "ATS/include/atsfs_fat.cats"
+
+
+//
+// for handling a call like: printk (KERN_INFO "...")
+//
+#ifdef ATSstrcst
+#undef ATSstrcst
+#endif
+#define ATSstrcst(x) x
+//
+
 %} // end of [%{#]
 
 (* ****** ****** *)
 
 (* end of [myheader.sats] *)
+

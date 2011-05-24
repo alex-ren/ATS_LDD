@@ -7,13 +7,15 @@
 #ifndef ATS_FAT_FILE_CATS
 #define ATS_FAT_FILE_CATS
 
+
 /* ****** ****** */
-#include "ATS/atsfs_basic_types.h"
-
+/* ****** ****** */
 #include "ATS/ats_fat_file.h"
-#include "fat_inode.h"
+#include "ATS/atsfs_user_types_opr.h"
 
-#include "ATS/atsfs_types_opr.h"
+#include "fat_inode.h"
+#include "fat_entry.h"
+
 
 #include <linux/buffer_head.h>
 
@@ -22,6 +24,7 @@ typedef struct file file_struct;
 typedef struct super_block super_block_struct;
 typedef struct fat_inode_info fat_inode_info_struct;
 typedef struct fat_sb_info fat_sb_info_struct;
+
 /* ****** ****** */
 
 ATSinline ()
@@ -75,20 +78,65 @@ ats_size_type atsfs_get_blocksize(super_block_struct *sb)
 }
 
 ATSinline ()
-char * atsfs_sbread(super_block_struct *sb, sector_t blocknr)
+ats_size_type atsfs_get_clustersize(fat_sb_info_struct *sbi)
 {
-    struct buffer_head *bh = sb_bread(sb, blocknr);
-    if (NULL = bh)
+    return sbi->cluster_size;
+}
+
+ATSinline ()
+ats_ptr_type atsfs_sbread(super_block_struct *sb, sector_t blocknr,
+                          struct buffer_head **bh)
+{
+    *bh = sb_bread(sb, blocknr);
+    if (NULL == *bh)
     {
-        return NULL:
+        return NULL;
     }
     else
     {
-        return bh->b_data;
+        return *bh;
     }
 }
 
+// ats guratantees that bh is not null
+ATSinline ()
+void atsfs_bufferheadptr_free (struct buffer_head *bh)
+{
+    brelse(bh);
+}
+    
+ATSinline ()
+char* atsfs_bufferheadptr_get_buf (struct buffer_head *bh)
+{
+    return bh->b_data;
+}
+
+ATSinline ()
+int atsfs_get_first_cluster(struct inode * inode)
+{
+    int ncls = MSDOS_I(inode)->i_start;
+    BUG_ON(0 == ncls);
+    return ncls;
+}
+
+ATSinline ()
+int atsfs_get_next_cluster(super_block_struct *sb, int cur_cls, int *nxt_cls)
+{
+    return fatent_next_sb(sb, cur_cls, nxt_cls);
+}
+
+
+ATSinline ()
+sector_t atsfsnblock_plus_loff_t(sector_t s, loff_t off)
+{
+    return s + off;
+}
 
 #endif
+
+
+
+
+
 
 

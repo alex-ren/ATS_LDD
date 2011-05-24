@@ -11,6 +11,8 @@
 (* This must be staloaded first *)
 staload "myheader.sats"
 
+staload "linux/SATS/kernel.sats"
+
 (* ***** ***** ***** *)
 staload "ats_fat_file.sats"
 staload UN = "prelude/SATS/unsafe.sats"
@@ -25,6 +27,9 @@ macdef copy_from_user = $UACC.copy_from_user
 
 implement fat_sync_read
  {l} {n} {ofs} (pfbuf | file , p , n , pos) = let
+
+  val () = printk (KERN_INFO "fat_sync_read\n", @())
+
   val (v_inode | pinode) = file2inode_acquire (file)
   stavar filesz: int
   val filesz = (pinode->i_size): loff_t filesz
@@ -60,10 +65,10 @@ in
     val (xx | yy) = loff_ldiv_loff (pos, loff1_of_size1 (clssz), cls_num, cls_ofs)
 
     val cls_first = get_first_cluster (!pfnode)
-    val () = BUG_ON (cls_first <> FAT_ENT_FREE)
+    // val () = BUG_ON (cls_first <> FAT_ENT_FREE)
     
     var nth_cls: int
-    val ncls = get_nth_cluster (cls_first, int1_of_loff1 (cls_num), nth_cls)
+    val ncls = get_nth_cluster (!psb, cls_first, int1_of_loff1 (cls_num), nth_cls)
   in
     if loff1_of_int1 (nth_cls) < cls_num then let
       (* return all the views *)
@@ -99,6 +104,26 @@ in
   end
 end
 
+// fun copy_clusters_impl
+//   {pinode:addr}
+//   {pbuf: addr} 
+//   {n: nat}
+//   {ofs: nat | ofs < clssz}   // offset in current cluster
+//   {len: pos | len <= n}  // total length to be copied
+//   {accu: nat}
+//   {e: nat} (
+//   pf_inode_r: !inode_own @ pinode,
+//   pf_buf: !bytes(n) @ pbuf |
+//   sb: &super_block,
+//   pbuf: $Basics.uptr pbuf,
+//   ofs: loff_t (ofs),
+//   len: size_t (len),
+//   ncls: ncluster_norm,
+//   clssz: size_t (clssz),
+//   accu: size_t (accu),
+//   err: &(errno_t e) >> errno_t  // last error
+//   ): #[accu': int | accu' >= accu; accu' - accu <= len] 
+//   (error_ret (e, accu' - accu) | size_t (accu'))
 implement copy_clusters_impl
   {pinode}
   {pbuf} {n}
@@ -115,24 +140,33 @@ implement copy_clusters_impl
   in
     if int_of (err) <> 0 then (error_ret_any | accu)
     else let
-      val ncls' = get_next_cluster (ncls)
+      var nxt_cls: ncluster?
+      val ret_err = get_next_cluster (sb, ncls, nxt_cls)
     in
-      if ncls' = FAT_ENT_FREE || ncls' = FAT_ENT_BAD || ncls' = FAT_ENT_EOF
-      then let
-        val () = err := EIO
+      if int_of (ret_err) <> 0 then let
+        prval () = opt_unnone {ncluster_notbad} (nxt_cls)
       in
-        (error_ret_any | accu)
+        (error_ret_any | accu) 
+      end else let
+        prval () = opt_unsome {ncluster_notbad} (nxt_cls)
+      in
+        if nxt_cls = FAT_ENT_FREE || nxt_cls = FAT_ENT_EOF
+        then let
+          val () = err := EIO
+        in
+          (error_ret_any | accu)
+        end
+        else if len - len1 > 0 then let 
+          prval (pf_buf1, pf_buf2) = bytes_v_split {n} {len1} (pf_buf)
+          val (pf_ret | ret) = copy_clusters_impl (pf_inode_r, pf_buf2 | 
+                sb, pbuf + len1, loff1_of_int1 (0), 
+                len - len1, nxt_cls, clssz, accu, err)
+          prval () = pf_buf := bytes_v_unsplit (pf_buf1, pf_buf2)
+        in
+          (error_ret_any | ret)
+        end else
+          (error_ret_any | accu)
       end
-      else if len - len1 > 0 then let 
-        prval (pf_buf1, pf_buf2) = bytes_v_split {n} {len1} (pf_buf)
-        val (pf_ret | ret) = copy_clusters_impl (pf_inode_r, pf_buf2 | 
-              sb, pbuf + len1, loff1_of_int1 (0), 
-              len - len1, ncls', clssz, accu, err)
-        prval () = pf_buf := bytes_v_unsplit (pf_buf1, pf_buf2)
-      in
-        (error_ret_any | ret)
-      end else
-        (error_ret_any | accu)
     end
   end
 
@@ -227,24 +261,27 @@ implement copy_phyblock_impl
   nblk,
   err
   ) = let
-  val [b: bool] bhptr_opt = sbread (sb, nblk)
+  var bh: bufferheadptr (null) ?
+  val p = sbread (sb, nblk, bh)
 in
-  case+ bhptr_opt of
-  | ~Some_vt (bhptr) => let
-    val (minus, pf | pblock) = bufferheadptr_get_buf (bhptr)
+  if p > null then let
+    prval () = opt_unsome (bh)
+    val (vo | pblock) = bufferheadptr_get_buf (bh)
+    prval (pf, fpf) = viewout_decode (vo)
     
     prval (pf1, pf2) = bytes_v_split {blksz}{ofs} (pf)
     val nleft = copy_to_user (pf_buf | 
       pbuf, !(pblock + int1_of_loff1 (ofs)), ulint1_of_size1 (len))
     prval pf = bytes_v_unsplit (pf1, pf2)
     val () = err := (if size1_of_ulint1 (nleft) < len then EIO else err)
-    prval () = minus_addback (minus, pf | bhptr)
-    val () = bufferheadptr_free (bhptr)
+
+    prval () = fpf (pf)
+    val () = bufferheadptr_free (bh)
   in
     size1_of_ulint1 (nleft)
-  end 
-  | ~None_vt () => let
+  end else let
     val () = err := EIO
+    prval () = opt_unnone (bh)
   in
     size1_of_int1 (0)
   end
@@ -257,4 +294,44 @@ implement ncluster2block (sbi, n) = let
 in
   nblock_of_ulint (k)
 end
+
+// fun get_nth_cluster {n:nat} (
+//  cls: ncluster_norm, n: int n, n1: &int? >> int n1
+// ) : #[n1:nat | n1 <= n] ncluster_norm
+implement get_nth_cluster {n} (sb, cls, n, n1) = let
+  fun loop {n, n1: nat} (sb: &super_block,
+    cls: ncluster_norm, n: int n, n1: &int n1>> int n2
+  ): #[n2: nat | n2 >= n1; n2 <= n1 + n] ncluster_norm =
+    if n = 0 then cls
+    else let
+      var nxt_cls: ncluster?
+      val ret_err = get_next_cluster (sb, cls, nxt_cls)
+    in
+      if int_of (ret_err) <> 0 then let
+        prval () = opt_unnone {ncluster_notbad} (nxt_cls)
+      in
+        cls
+      end else let
+        prval () = opt_unsome {ncluster_notbad} (nxt_cls)
+      in
+        if nxt_cls = FAT_ENT_FREE || nxt_cls = FAT_ENT_EOF then cls
+        else let
+          val () = n1 := n1 + 1
+        in
+          loop (sb, cls, n - 1, n1)
+        end
+      end
+    end
+
+  val () = n1 := 0
+in
+  loop (sb, cls, n, n1)
+end
+
+       
+
+
+
+
+
 

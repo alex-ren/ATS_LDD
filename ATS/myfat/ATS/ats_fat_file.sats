@@ -103,18 +103,18 @@ cluster_kind =
 #define FAT_ENT_BAD  0x0FFFFFF7
 #define FAT_ENT_EOF  0x0FFFFFFF
 
-typedef ncluster = [i: int | i >= 0] int i
+typedef ncluster = [i: nat] int i
 typedef ncluster_free = int (FAT_ENT_FREE)
 typedef ncluster_bad = int (FAT_ENT_BAD)
 typedef ncluster_notbad = 
-    [i:int| i <> FAT_ENT_BAD] int (i)
+    [i:nat| i <> FAT_ENT_BAD] int (i)
 
 typedef ncluster_norm = 
-    [i:int|i <> FAT_ENT_FREE; i <> FAT_ENT_BAD; i <> FAT_ENT_EOF] 
+    [i:nat|i <> FAT_ENT_FREE; i <> FAT_ENT_BAD; i <> FAT_ENT_EOF] 
     int (i)
 
 typedef ncluster_valid = 
-    [i:int| i <> FAT_ENT_BAD; i <> FAT_ENT_EOF] 
+    [i:nat| i <> FAT_ENT_BAD; i <> FAT_ENT_EOF] 
     int (i)
 
 (* include/linux/msdos_fs.h *)
@@ -161,14 +161,13 @@ viewtypedef fat_inode_own = $extype_struct "fat_inode_info_struct" of {
 viewtypedef fat_sb_info = $extype_struct "fat_sb_info_struct" of {
   empty = empty,
   sec_per_clus = usint,  // unsigned short
-  cluster_size = uint,  // unsigned int
+  // cluster_size = uint,  // unsigned int
   data_start = ulint  // unsigned long
-  
 }
 
 viewtypedef buffer_head = $extype_struct "buffer_head_struct" of {
   empty = empty,
-  b_data = [l: addr | l > null] ptr l
+  b_data = [l: addr | l > null] (bytes (blksz) @ l | ptr l)
 }
 
 (* ============================================= *)
@@ -328,17 +327,25 @@ get_blocksize (sb: &super_block): size_t (blksz)
 
 fun
 get_clustersize (sbi: &fat_sb_info): size_t (clssz)
+= "mac#atsfs_get_clustersize"
 
 (* ============================================= *)
 
 fun get_first_cluster
- (node: &fat_inode): ncluster_valid
+ (node: &fat_inode): ncluster_norm  // ncluster_valid
+= "mac#atsfs_get_first_cluster"
 
+(* cls: current physical cluster no. in the volume *)
+(* C code should guarantee to ruturn sth. not bad *)
 fun get_next_cluster
- (cls: ncluster_norm): ncluster
+ (sb: &super_block, cur_cls: ncluster_norm, 
+  nxt_cls: &ncluster? >> opt(ncluster_notbad, e == 0)): #[e: nat] errno_t (e)
+= "mac#atsfs_get_next_cluster"
 
+(* cls: starting cluster *)
+(* n: steps *)
 fun get_nth_cluster {n:nat} (
- cls: ncluster_norm, n: int n, n1: &int? >> int n1
+ sb: &super_block, cls: ncluster_norm, n: int n, n1: &int? >> int n1
 ) : #[n1:nat | n1 <= n] ncluster_norm
 
 fun ncluster2block (sbi: &fat_sb_info, n: ncluster_valid): nblock
@@ -349,29 +356,29 @@ castfn ulint_of_usint (i: usint): ulint
 castfn nblock_of_ulint (i: ulint): nblock
 
 fun nblock_plus_loff_t {k: int} (nblk: nblock, k: loff_t k): nblock
+= "mac#atsfsnblock_plus_loff_t"
 overload + with nblock_plus_loff_t
 
 (* ******************* ********************* *)
+absviewtype bufferheadptr (l:addr) = $extype "struct buffer_head *"
 
-absviewtype bufferheadptr (l:addr)
+fun sbread (sb: &super_block, nblk: nblock, 
+  bh: & bufferheadptr (null) ? >> opt (bufferheadptr l, l > null)): 
+  #[l: addr] (ptr l)
+= "mac#atsfs_sbread"
 
-fun sbread (sb: &super_block, nblk: nblock): 
-  [b: bool] (option_vt ([l: addr | l > null] (bufferheadptr l), b))
+fun bufferheadptr_free {l:agz} (bh: bufferheadptr l): void
+= "mac#atsfs_bufferheadptr_free"
 
-// fun bufferheadptr_free_null
-//  (bf: bufferheadptr null): void = "mac#atspre_ptr_free_null"
-
-fun bufferheadptr_free {l:agz} (bf: bufferheadptr l): void
-
-fun
-bufferheadptr_get_buf {l:agz}(
- p: !bufferheadptr l
-) : (minus (bufferheadptr l, bytes (blksz) @ l), bytes (blksz) @ l | ptr l)
+fun bufferheadptr_get_buf {l: agz} (bh: !bufferheadptr l):
+  [sz: agz] ($UN.viewout (bytes (blksz) @ sz) | ptr sz)
+= "mac#atsfs_bufferheadptr_get_buf"
 
 (* ******************* ********************* *)
 
 fun uptr_plus_size1 {l: addr} {m:nat} (
   l: $Basics.uptr l, m: size_t m): $Basics.uptr (l + m)
+= "mac#atsfs_uptr_plus_size1"
 overload + with uptr_plus_size1
 
 

@@ -12,6 +12,9 @@
 -- use starttest.sh / stoptest.sh to do the test
 
 
+-- Where to find original Linux modules
+  /lib/modules/`uname -r`/kernel/fs/fat
+
 -- Description of directories
   C/myfat was taken from linux source kernel_2.6.32-5-686_debian/fs/fat. 
 

@@ -51,6 +51,7 @@ void fat32_ent_put(struct fat_entry *fatent, int new);
 *
 */
 int fatent_next(struct inode *inode, int curent, int *nxtent);
+int fatent_next_sb(struct super_block *sb, int curent, int *nxtent);
 
 #endif
 

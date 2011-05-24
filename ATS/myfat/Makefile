@@ -72,10 +72,17 @@ ats_inode_dats.o: ats_fat_inode_dats.c
 ats: ats_fat_inode_dats.c ats_fat_file_dats.c
 
 ats_fat_inode_dats.c: ATS/ats_fat_inode.dats ATS/ats_fat_inode.sats
-	$(ATSOPT) -IATS ATS -o $@ -d $<
+	$(ATSOPT) -IATS ATS -IATS $(ATSHOME)/contrib/linux -o $@ -d $<
 
 ats_fat_file_dats.c: ATS/ats_fat_file.dats ATS/ats_fat_file.sats
-	$(ATSOPT) -IATS ATS -o $@ -d $<
+	$(ATSOPT) -IATS ATS -IATS $(ATSHOME)/contrib/linux -o $@ -d $<
+
+
+.PHONY: atsclean
+
+atsclean:
+	rm -f ats_fat_inode_dats.c
+	rm -f ats_fat_file_dats.c
 # 
 
 ######

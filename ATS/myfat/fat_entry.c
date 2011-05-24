@@ -188,9 +188,8 @@ void fat_ent_access_init(struct super_block *sb)
 * todo into ATS, the special kind of return value
 *
 */
-int fatent_next(struct inode *inode, int curent, int *nxtent)
+int fatent_next_sb(struct super_block *sb, int curent, int *nxtent)
 {
-    struct super_block *sb = inode->i_sb;
     struct fat_entry ent;
 
     int offset = 0;
@@ -201,7 +200,7 @@ int fatent_next(struct inode *inode, int curent, int *nxtent)
     fatent_init (&ent);
     fatent_set_entry(&ent, curent);  // set the no. of entry
     fat_ent_blocknr(sb, curent, &offset, &blocknr);  // get the block no. and offset of dclus
-    printk (KERN_INFO "myfat: fatent_next offset is %d, blocknr is %lld\n", offset, blocknr);
+    printk (KERN_INFO "myfat: fatent_next_sb offset is %d, blocknr is %lld\n", offset, blocknr);
     
     if (fat_ent_bread(sb, &ent, offset, blocknr))
     {
@@ -214,5 +213,17 @@ int fatent_next(struct inode *inode, int curent, int *nxtent)
 out:
     fatent_brelse(&ent);
     return ret;
+}
+
+/*
+* Desc: get the no. of the next entry in the link list of FAT
+* Info: can return FAT_ENT_EOF and FAT_ENT_FREE
+* todo into ATS, the special kind of return value
+*
+*/
+int fatent_next(struct inode *inode, int curent, int *nxtent)
+{
+    struct super_block *sb = inode->i_sb;
+    return fatent_next_sb(sb, curent, nxtent);
 }
 
