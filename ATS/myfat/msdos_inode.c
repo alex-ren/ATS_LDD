@@ -70,11 +70,14 @@ static struct dentry *msdos_lookup(struct inode *dir, struct dentry *dentry,
 		goto error;
 	}
 out:
+        printk (KERN_INFO "myfat: msdos_lookup, succees: inode addr is %p\n", inode);
 	unlock_super(sb);
 	dentry->d_op = &msdos_dentry_operations;
 	dentry = d_splice_alias(inode, dentry);
 	if (dentry)
 		dentry->d_op = &msdos_dentry_operations;
+
+       // printk (KERN_INFO "myfat: msdos_lookup, inode in dentry, addr is %p\n", dentry->d_inode);
 	return dentry;
 
 error:

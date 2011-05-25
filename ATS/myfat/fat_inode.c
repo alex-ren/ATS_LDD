@@ -296,6 +296,10 @@ int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de)
 	struct fat_sb_info *sbi = MSDOS_SB(inode->i_sb);
 	int error;
 
+        printk(KERN_INFO "myfat: fat_fill_inode, inode no: %lu\n", inode->i_ino);
+        printk(KERN_INFO "myfat: fat_fill_inode, inode addr: %p\n", inode);
+        printk(KERN_INFO "myfat: fat_fill_inode, fat_inode addr: %p\n", MSDOS_I(inode));
+
 	MSDOS_I(inode)->i_pos = 0;
 	inode->i_uid = sbi->options.fs_uid;
 	inode->i_gid = sbi->options.fs_gid;
@@ -303,6 +307,7 @@ int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de)
 	inode->i_generation = get_seconds();
 
 	if ((de->attr & ATTR_DIR) && !IS_FREE(de->name)) {
+                printk(KERN_INFO "myfat: fat_fill_inode ATTR_DIR\n");
 		inode->i_generation &= ~1;
 		inode->i_mode = fat_make_mode(sbi, de->attr, S_IRWXUGO);
 		inode->i_op = sbi->dir_ops;
@@ -312,6 +317,7 @@ int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de)
 		if (sbi->fat_bits == 32)
 			MSDOS_I(inode)->i_start |= (le16_to_cpu(de->starthi) << 16);
 
+                printk(KERN_INFO "myfat: fat_fill_inode i_start is %d\n", MSDOS_I(inode)->i_start);
 		MSDOS_I(inode)->i_logstart = MSDOS_I(inode)->i_start;
 		error = fat_calc_dir_size(inode);
 		if (error < 0)
@@ -320,6 +326,7 @@ int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de)
 
 		inode->i_nlink = fat_subdirs(inode);
 	} else { /* not a directory */
+                printk(KERN_INFO "myfat: fat_fill_inode not dir\n");
 		inode->i_generation |= 1;
 		inode->i_mode = fat_make_mode(sbi, de->attr,
 			((sbi->options.showexec && !is_exec(de->name + 8))
@@ -328,6 +335,7 @@ int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de)
 		if (sbi->fat_bits == 32)
 			MSDOS_I(inode)->i_start |= (le16_to_cpu(de->starthi) << 16);
 
+                printk(KERN_INFO "myfat: fat_fill_inode i_start is %d\n", MSDOS_I(inode)->i_start);
 		MSDOS_I(inode)->i_logstart = MSDOS_I(inode)->i_start;
 		inode->i_size = le32_to_cpu(de->size);
 		inode->i_op = &fat_file_inode_operations;

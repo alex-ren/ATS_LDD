@@ -433,7 +433,7 @@ struct fat_ioctl_filldir_callback {
 *
 */
 // typedef int (*filldir_t)(void *, const char *, int, loff_t, u64, unsigned);
-// buffer, buffer for dir name, length of dir, inode no. attributes
+// buffer, buffer for dir name, length of dir, xxx, inode no., file types
 static int __fat_readdir(struct inode *inode, struct file *filp, void *dirent,
 			 filldir_t filldir, int short_only, int both)
 {
