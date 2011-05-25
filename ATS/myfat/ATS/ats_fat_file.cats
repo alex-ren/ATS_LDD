@@ -30,6 +30,8 @@ typedef struct fat_sb_info fat_sb_info_struct;
 ATSinline ()
 struct inode * atsfs_file2inode(file_struct *fp) 
 {
+    struct inode *i = fp->f_dentry->d_inode;
+    // printk(KERN_INFO "myfat: atsfs_file2inode_acquire, inode addr is %p\n", i);
     return fp->f_dentry->d_inode;
 }
 
@@ -37,6 +39,7 @@ ATSinline ()
 struct inode * atsfs_file2inode_acquire(file_struct *fp)
 {
     struct inode *i = fp->f_dentry->d_inode;
+    // printk(KERN_INFO "myfat: atsfs_file2inode_acquire, inode addr is %p\n", i);
     mutex_lock(&i->i_mutex);
     return i;
 }
@@ -115,6 +118,12 @@ ATSinline ()
 int atsfs_get_first_cluster(struct inode * inode)
 {
     int ncls = MSDOS_I(inode)->i_start;
+    // printk(KERN_INFO 
+    //   "myfat: atsfs_get_first_cluster, fat_inode addr is %p\n", 
+    //   MSDOS_I(inode));
+    // printk(KERN_INFO "myfat: atsfs_get_first_cluster, inode addr is %p\n", inode);
+    // printk(KERN_INFO "myfat: atsfs_get_first_cluster, inode no is %lu\n", inode->i_ino);
+    // printk(KERN_INFO "myfat: atsfs_get_first_cluster, i_start is %d\n", ncls);
     BUG_ON(0 == ncls);
     return ncls;
 }

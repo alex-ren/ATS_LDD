@@ -332,7 +332,7 @@ get_clustersize (sbi: &fat_sb_info): size_t (clssz)
 (* ============================================= *)
 
 fun get_first_cluster
- (node: &fat_inode): ncluster_norm  // ncluster_valid
+ (node: &inode): ncluster_norm  // ncluster_valid
 = "mac#atsfs_get_first_cluster"
 
 (* cls: current physical cluster no. in the volume *)
@@ -418,6 +418,13 @@ castfn loff1_of_int1 {i: int} (i: int i): loff_t i
 castfn int1_of_loff1 {i: int} (i: loff_t i): int i
 
 castfn ulint1_of_size1 {i: nat} (i: size_t i): ulint i
+
+(* *********** ************ *)
+(* temporary use *)
+castfn int_of_size1 {i: nat} (i: size_t i): int
+castfn int_of_loff1 {i: nat} (i: loff_t i): int
+
+(* *********** ************ *)
 
 fun loff_ldiv_loff {num,den: nat| den > 0} (
   num: loff_t num, den: loff_t den, 

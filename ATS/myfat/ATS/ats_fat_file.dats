@@ -28,47 +28,61 @@ macdef copy_from_user = $UACC.copy_from_user
 implement fat_sync_read
  {l} {n} {ofs} (pfbuf | file , p , n , pos) = let
 
-  val () = printk (KERN_INFO "fat_sync_read\n", @())
+  val () = printk (KERN_INFO "atsfs: fat_sync_read 0001\n", @())
 
   val (v_inode | pinode) = file2inode_acquire (file)
+  // val () = printk (KERN_INFO "atsfs: fat_sync_read 0002\n", @())
   stavar filesz: int
   val filesz = (pinode->i_size): loff_t filesz
+  val () = printk (KERN_INFO "atsfs: fat_sync_read 0003 filesz is %d\n", 
+    @(int_of_loff1 (filesz)))
 in
   if (pos >= filesz) = true then let
     val () = file2inode_release (v_inode | pinode)
   in
-    ssize1_of_int1 (~int_of (EIO))
+    // ssize1_of_int1 (~int_of (EIO))
+    // return 0 is O.K. No need to return error.
+    ssize1_of_int1 (0)
   end else let
     stavar len: int
     val len = (filesz - pos): loff_t len
     val len = min (size1_of_loff1 (len), n)
+    val () = printk (KERN_INFO "atsfs: fat_sync_read 0010\n", @())
 
     (* get all the views needed *)
     val (vo_inode | pinode') = inode_own2inode (!pinode)
+    // val () = printk (KERN_INFO "atsfs: fat_sync_read 0011\n", @())
     prval (pf_inode, fpf_inode) = viewout_decode (vo_inode)
 
     val (vo_fnode | pfnode) = inode2fat_inode_own (!pinode)
+    // val () = printk (KERN_INFO "atsfs: fat_sync_read 0012\n", @())
     prval (pf_fnode, fpf_fnode) = viewout_decode (vo_fnode)
 
     val (vo_sb | psb) = inode2sb (!pinode)
+    // val () = printk (KERN_INFO "atsfs: fat_sync_read 0013\n", @())
     prval (pf_sb, fpf_sb) = viewout_decode (vo_sb)
 
     val (vo_sbi | psbi) = sb2fat_sb (!psb)
+    // val () = printk (KERN_INFO "atsfs: fat_sync_read 0014\n", @())
     prval (pf_sbi, fpf_sbi) = viewout_decode (vo_sbi)
     // end of [getting view]
 
     val clssz = get_clustersize (!psbi)
+    val () = printk (KERN_INFO "atsfs: fat_sync_read 0015\n", @())
     prval () = clssz_pos ()
 
     var cls_ofs: loff_t
     var cls_num: loff_t
     val (xx | yy) = loff_ldiv_loff (pos, loff1_of_size1 (clssz), cls_num, cls_ofs)
+    val () = printk (KERN_INFO "atsfs: fat_sync_read 0020\n", @())
 
-    val cls_first = get_first_cluster (!pfnode)
+    val cls_first = get_first_cluster (!pinode')
+    val () = printk (KERN_INFO "atsfs: fat_sync_read 0021\n", @())
     // val () = BUG_ON (cls_first <> FAT_ENT_FREE)
     
     var nth_cls: int
     val ncls = get_nth_cluster (!psb, cls_first, int1_of_loff1 (cls_num), nth_cls)
+    val () = printk (KERN_INFO "atsfs: fat_sync_read 0023\n", @())
   in
     if loff1_of_int1 (nth_cls) < cls_num then let
       (* return all the views *)
@@ -82,10 +96,13 @@ in
     in
       ssize1_of_int1 (~int_of (EIO))
     end else let
+      val () = printk (KERN_INFO "atsfs: fat_sync_read 0030\n", @())
       var accu = 0: size_t 0
       var err = errno_of_int 0
       val (pf_ret | ret) = copy_clusters_impl (v_inode, pfbuf |
         !psb, p, cls_ofs, len, ncls, clssz, accu, err) 
+      val () = printk (KERN_INFO "atsfs: fat_sync_read 0031, size is %d\n", 
+        @(int_of_size1 (ret)))
   
       val () = pos := pos + loff1_of_size1 (ret)
   
@@ -132,10 +149,13 @@ implement copy_clusters_impl
   pf_inode_r, pf_buf | sb, pbuf, ofs, len, ncls, clssz, accu, err) =
   if int_of (err) <> 0 then (error_ret_pos () | accu)
   else let
+    val () = printk (KERN_INFO "atsfs: copy_clusters_impl 0001\n", @())
     val len1 = size1_of_loff1 (clssz - ofs)
     stavar len1: int
     val len1 = min (len, len1): size_t len1
     val ret = copy_cluster_impl (pf_inode_r, pf_buf | sb, pbuf, ofs, len1, ncls, err)
+    val () = printk (KERN_INFO "atsfs: copy_clusters_impl 0020 ret is %d\n", 
+      @(int_of_size1 (ret)))
     val accu = accu + ret
   in
     if int_of (err) <> 0 then (error_ret_any | accu)
@@ -188,6 +208,7 @@ implement copy_cluster_impl
   ) =
   if int_of (err) <> 0 then size1_of_int1 0
   else let
+    val () = printk (KERN_INFO "atsfs: copy_cluster_impl 0001\n", @()) 
     val (vo_sbi | psbi) = sb2fat_sb (sb)
     prval (pf_sbi, fpf_sbi) = viewout_decode (vo_sbi)
     val pnblk = ncluster2block (!psbi, ncls)
@@ -204,6 +225,8 @@ implement copy_cluster_impl
 
     val retsz = copy_phyblocks_impl (
       pf_inode_r, pf_buf | sb, pbuf, blk_ofs, len, pnblk, blksz, 0, err)
+    val () = printk (KERN_INFO "atsfs: copy_cluster_impl 0040 size is %d\n", 
+      @(int_of_size1 (retsz))) 
   in
     retsz
   end
@@ -229,10 +252,13 @@ implement copy_phyblocks_impl
   ) =
   if int_of (err) <> 0 then accu
   else let
+    val () = printk (KERN_INFO "atsfs: copy_phyblocks_impl 0001\n", @())
     val len1 = size1_of_loff1 (blksz - ofs)
     stavar len1: int
     val len1 = min (len, len1): size_t len1
     val ret = copy_phyblock_impl (pf_inode_r, pf_buf | sb, pbuf, ofs, len1, pnblk, err)
+    val () = printk (KERN_INFO "atsfs: copy_phyblocks_impl 0030 size is %d\n", 
+      @(int_of_size1 (ret))) 
     val accu = accu + ret
   in
     if len > len1 then let
@@ -246,6 +272,21 @@ implement copy_phyblocks_impl
     end else accu
   end
 
+// fun copy_phyblock_impl
+//   {pinode:addr}
+//   {pbuf: addr} 
+//   {n: nat}
+//   {ofs: nat}   // offset in cluster
+//   {len: pos | len <= n; ofs + len <= blksz} (
+//   pf_inode_r: !inode_own @ pinode,
+//   pf_buf: !bytes(n) @ pbuf |
+//   sb: &super_block,
+//   pbuf: $Basics.uptr pbuf,
+//   ofs: &loff_t (ofs),
+//   len: size_t (len),
+//   nblk: nblock,
+//   err: &errno_t 0 >> errno_t
+//   ): #[len1:nat | len1 <= len] size_t len1
 implement copy_phyblock_impl
   {pinode}
   {pbuf} 
@@ -261,25 +302,33 @@ implement copy_phyblock_impl
   nblk,
   err
   ) = let
+  val () = printk (KERN_INFO "atsfs: copy_phyblock_impl 0001\n", @())
   var bh: bufferheadptr (null) ?
   val p = sbread (sb, nblk, bh)
 in
   if p > null then let
+    val () = printk (KERN_INFO "atsfs: copy_phyblock_impl read O.K.\n", @())
     prval () = opt_unsome (bh)
     val (vo | pblock) = bufferheadptr_get_buf (bh)
     prval (pf, fpf) = viewout_decode (vo)
     
+    val () = printk (KERN_INFO "atsfs: copy_phyblock_impl read offset is %d, len is %d\n", 
+      @(int_of_loff1 (ofs), int_of_size1 (len)))
+
     prval (pf1, pf2) = bytes_v_split {blksz}{ofs} (pf)
     val nleft = copy_to_user (pf_buf | 
       pbuf, !(pblock + int1_of_loff1 (ofs)), ulint1_of_size1 (len))
+    val () = printk (KERN_INFO "atsfs: copy_phyblock_impl read nleft is %lu\n", 
+      @(nleft))
     prval pf = bytes_v_unsplit (pf1, pf2)
     val () = err := (if size1_of_ulint1 (nleft) < len then EIO else err)
 
     prval () = fpf (pf)
     val () = bufferheadptr_free (bh)
   in
-    size1_of_ulint1 (nleft)
+    len - size1_of_ulint1 (nleft)
   end else let
+    val () = printk (KERN_INFO "atsfs: copy_phyblock_impl read failed\n", @())
     val () = err := EIO
     prval () = opt_unnone (bh)
   in
