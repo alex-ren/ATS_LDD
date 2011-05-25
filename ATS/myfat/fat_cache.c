@@ -114,7 +114,7 @@ static int fat_bmap_cluster(struct inode *inode, int cluster)
 *   In:
 *   sector: no. of sector (inside a file)
 *   Out:
-*   phys: no. of cluster in volume
+*   phys: no. of block in volume
 *   mapped_blocks: of no use now
 *   create: of no use now
 *
