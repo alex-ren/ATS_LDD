@@ -273,6 +273,10 @@ out:
 	return nr;
 }
 
+/*
+* Desc: transform the cluster in file to cluster in the data region
+*
+*/
 static int fat_bmap_cluster(struct inode *inode, int cluster)
 {
 	struct super_block *sb = inode->i_sb;
@@ -292,6 +296,17 @@ static int fat_bmap_cluster(struct inode *inode, int cluster)
 	return dclus;
 }
 
+/*
+* Desc: transform sector (inside a file) to a sector in the volume
+* Para:
+*   In:
+*   sector: no. of sector (inside a file)
+*   Out:
+*   phys: no. of cluster in volume
+*   mapped_blocks: unknown
+*   create: unknown
+*
+*/
 int fat_bmap(struct inode *inode, sector_t sector, sector_t *phys,
 	     unsigned long *mapped_blocks, int create)
 {

@@ -3,8 +3,8 @@
 // Time: May 20th., 2011
 //
 
-#ifdef ATS_FAT_FILE_H
-#define ATS_FAT_FILE_H
+#ifdef ATS_FAT_FILE_CATS
+#define ATS_FAT_FILE_CATS
 
 
 #include <linux/math64.h>  // for do_div

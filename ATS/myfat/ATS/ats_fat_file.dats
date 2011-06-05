@@ -1,4 +1,3 @@
-
 //
 // Author: Zhiqiang Ren (aren AT cs DOT bu DOT edu)
 // Time: April 6th., 2011
@@ -11,19 +10,32 @@
 (* This must be staloaded first *)
 staload "myheader.sats"
 
-staload "linux/SATS/kernel.sats"
+(* ***** ***** ***** *)
+
+staload "contrib/linux/linux/SATS/kernel.sats"  // for printk
 
 (* ***** ***** ***** *)
+
 staload "ats_fat_file.sats"
+staload "ats_fs_types.sats"
+staload "ats_fat_cache.sats"
+
+(* ***** ***** ***** *)
 staload UN = "prelude/SATS/unsafe.sats"
 macdef viewout_decode = $UN.viewout_decode
 
+(* ***** ***** ***** *)
+
+
+(* ***** ***** ***** *)
 
 staload
 UACC = "contrib/linux/asm/SATS/uaccess.sats"
 macdef clear_user = $UACC.clear_user
 macdef copy_to_user = $UACC.copy_to_user
 macdef copy_from_user = $UACC.copy_from_user
+
+(* ***** ***** ***** *)
 
 implement fat_sync_read
  {l} {n} {ofs} (pfbuf | file , p , n , pos) = let
@@ -94,11 +106,11 @@ in
   
       val () = file2inode_release (v_inode | pinode)
     in
-      ssize1_of_int1 (~int_of (EIO))
+      ssize1_of_int1 (~int1_of_errno1 (EIO))
     end else let
       val () = printk (KERN_INFO "atsfs: fat_sync_read 0030\n", @())
       var accu = 0: size_t 0
-      var err = errno_of_int 0
+      var err = errno1_of_int1 0
       val (pf_ret | ret) = copy_clusters_impl (v_inode, pfbuf |
         !psb, p, cls_ofs, len, ncls, clssz, accu, err) 
       val () = printk (KERN_INFO "atsfs: fat_sync_read 0031, size is %d\n", 
@@ -116,7 +128,7 @@ in
       val () = file2inode_release (v_inode | pinode)
     in
       if ret > 0 then ssize1_of_size1 (ret)
-      else ssize1_of_int1 (~int_of_errno (err))
+      else ssize1_of_int1 (~int1_of_errno1 (err))
     end
   end
 end
@@ -147,7 +159,7 @@ implement copy_clusters_impl
   {ofs} {len} 
   {accu} {e} (
   pf_inode_r, pf_buf | sb, pbuf, ofs, len, ncls, clssz, accu, err) =
-  if int_of (err) <> 0 then (error_ret_pos () | accu)
+  if int1_of_errno1 (err) <> 0 then (error_ret_pos () | accu)
   else let
     val () = printk (KERN_INFO "atsfs: copy_clusters_impl 0001\n", @())
     val len1 = size1_of_loff1 (clssz - ofs)
@@ -158,12 +170,12 @@ implement copy_clusters_impl
       @(int_of_size1 (ret)))
     val accu = accu + ret
   in
-    if int_of (err) <> 0 then (error_ret_any | accu)
+    if int1_of_errno1 (err) <> 0 then (error_ret_any | accu)
     else let
       var nxt_cls: ncluster?
       val ret_err = get_next_cluster (sb, ncls, nxt_cls)
     in
-      if int_of (ret_err) <> 0 then let
+      if int1_of_errno1 (ret_err) <> 0 then let
         prval () = opt_unnone {ncluster_notbad} (nxt_cls)
       in
         (error_ret_any | accu) 
@@ -206,7 +218,7 @@ implement copy_cluster_impl
   ncls,
   err
   ) =
-  if int_of (err) <> 0 then size1_of_int1 0
+  if int1_of_errno1 (err) <> 0 then size1_of_int1 0
   else let
     val () = printk (KERN_INFO "atsfs: copy_cluster_impl 0001\n", @()) 
     val (vo_sbi | psbi) = sb2fat_sb (sb)
@@ -250,7 +262,7 @@ implement copy_phyblocks_impl
   accu,
   err  // last error
   ) =
-  if int_of (err) <> 0 then accu
+  if int1_of_errno1 (err) <> 0 then accu
   else let
     val () = printk (KERN_INFO "atsfs: copy_phyblocks_impl 0001\n", @())
     val len1 = size1_of_loff1 (blksz - ofs)
@@ -321,7 +333,7 @@ in
     val () = printk (KERN_INFO "atsfs: copy_phyblock_impl read nleft is %lu\n", 
       @(nleft))
     prval pf = bytes_v_unsplit (pf1, pf2)
-    val () = err := (if size1_of_ulint1 (nleft) < len then EIO else err)
+    val () = err := ((if size1_of_ulint1 (nleft) <> 0 then EIO else err): [pe: nat] errno_t pe)
 
     prval () = fpf (pf)
     val () = bufferheadptr_free (bh)
@@ -356,7 +368,7 @@ implement get_nth_cluster {n} (sb, cls, n, n1) = let
       var nxt_cls: ncluster?
       val ret_err = get_next_cluster (sb, cls, nxt_cls)
     in
-      if int_of (ret_err) <> 0 then let
+      if int1_of_errno1 (ret_err) <> 0 then let
         prval () = opt_unnone {ncluster_notbad} (nxt_cls)
       in
         cls

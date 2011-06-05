@@ -193,6 +193,11 @@ static inline unsigned char fat_checksum(const __u8 *name)
 	return s;
 }
 
+/*
+* Desc: transform no. of entry in FAT (or the no. of cluster in data region)
+*   to the number of sectors in the volume
+*
+*/
 static inline sector_t fat_clus_to_blknr(struct msdos_sb_info *sbi, int clus)
 {
         printk (KERN_INFO "myfat: fat_clus_to_blknr\n");

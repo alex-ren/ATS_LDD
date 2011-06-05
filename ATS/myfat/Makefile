@@ -44,7 +44,7 @@ obj-m += ats_msdos.o
 # ats_fat-objs := cache.o dir.o fatent.o file.o inode.o misc.o ats_sb_mgr.o
 ats_fat-objs := sb_mgr.o fat_inode.o fat_entry.o \
                fat_dir.o fat_cache.o fat_misc.o fat_file.o \
-               ats_fat_inode_dats.o ats_fat_file_dats.o
+               ats_fat_inode_dats.o ats_fat_file_dats.o ats_msdos_inode_dats.o
 
 # ats_fat_inode_dats.o 
 
@@ -69,7 +69,7 @@ ats_inode_dats.o: ats_fat_inode_dats.c
 
 .PHONY: ats
 
-ats: ats_fat_inode_dats.c ats_fat_file_dats.c
+ats: ats_fat_inode_dats.c ats_fat_file_dats.c ats_msdos_inode_dats.c
 
 ats_fat_inode_dats.c: ATS/ats_fat_inode.dats ATS/ats_fat_inode.sats
 	$(ATSOPT) -IATS ATS -IATS $(ATSHOME)/contrib/linux -o $@ -d $<
@@ -77,12 +77,15 @@ ats_fat_inode_dats.c: ATS/ats_fat_inode.dats ATS/ats_fat_inode.sats
 ats_fat_file_dats.c: ATS/ats_fat_file.dats ATS/ats_fat_file.sats
 	$(ATSOPT) -IATS ATS -IATS $(ATSHOME)/contrib/linux -o $@ -d $<
 
+ats_msdos_inode_dats.c: ATS/ats_msdos_inode.dats ATS/ats_msdos_inode.sats
+	$(ATSOPT) -IATS ATS -o $@ -d $<
 
 .PHONY: atsclean
 
 atsclean:
 	rm -f ats_fat_inode_dats.c
 	rm -f ats_fat_file_dats.c
+	rm -f ats_msdos_inode_dats.c
 # 
 
 ######

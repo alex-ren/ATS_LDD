@@ -12,9 +12,6 @@ staload "myheader.sats"
 
 (* ***** ***** ***** *)
 staload "ats_fat_inode.sats"
-
-implement foo (i) = i + 1
-
 (* fun new_inode (sb: super_block): inode = "ats_new_node" *)
 // implement new_inode (sb) = new_node_impl (sb)
 
