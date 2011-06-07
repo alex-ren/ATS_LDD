@@ -202,6 +202,22 @@ implement copy_clusters_impl
     end
   end
 
+// fun copy_cluster_impl
+//   {pinode:addr}
+//   {pbuf: addr} 
+//   {n: nat}
+//   {ofs: nat}   // offset in cluster
+//   {len: pos | len <= n; ofs + len <= $AFT.clssz}
+//   {e: nat} (
+//   pf_inode_r: !($AFT.inode_own) @ pinode,
+//   pf_buf: !bytes(n) @ pbuf |
+//   sb: &($AFT.super_block),
+//   pbuf: $Basics.uptr pbuf,
+//   ofs: $AFT.loff_t (ofs),
+//   len: size_t (len),
+//   ncls: $AFT.ncluster_valid,
+//   err: &($AFT.errno_t e) >> $AFT.errno_t pe
+//   ): #[len1:nat | len1 <= len] #[pe: nat] size_t len1
 implement copy_cluster_impl
   {pinode}
   {pbuf} 
@@ -243,6 +259,26 @@ implement copy_cluster_impl
     retsz
   end
 
+// fun copy_phyblocks_impl
+//   {pinode:addr}
+//   {pbuf: addr} 
+//   {n: nat}
+//   {ofs: nat | ofs < $AFT.blksz}   // offset in current block
+//   {len: pos | len <= n}  // total length to be copied
+//   {accu: nat} 
+//   {e: nat} (
+//   pf_inode_r: !($AFT.inode_own) @ pinode,
+//   pf_buf: !bytes(n) @ pbuf |
+//   sb: &($AFT.super_block),
+//   pbuf: $Basics.uptr pbuf,
+//   ofs: $AFT.loff_t (ofs),
+//   len: size_t (len),
+//   pnblk: $AFT.nblock,  // starting number of physical block
+//   blksz: size_t ($AFT.blksz),
+//   accu: size_t (accu),
+//   err: &($AFT.errno_t) e >> ($AFT.errno_t pe)  // last error
+//   ): #[accu': int | accu' >= accu; accu' - accu <= len] #[pe: nat] 
+//   size_t (accu')
 implement copy_phyblocks_impl
   {pinode}
   {pbuf} 
@@ -294,7 +330,7 @@ implement copy_phyblocks_impl
 //   pf_buf: !bytes(n) @ pbuf |
 //   sb: &super_block,
 //   pbuf: $Basics.uptr pbuf,
-//   ofs: &loff_t (ofs),
+//   ofs: loff_t (ofs),
 //   len: size_t (len),
 //   nblk: nblock,
 //   err: &errno_t 0 >> errno_t

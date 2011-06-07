@@ -20,6 +20,7 @@ staload "ats_msdos_inode.sats"
 staload "ats_msdos_misc.sats"
 staload "ats_fs_types.sats"
 staload "ats_fat_dir.sats"
+staload "ats_fat_inode.sats"
 
 (* ********** ********** *)
 
@@ -36,27 +37,30 @@ macdef copy_from_user = $UACC.copy_from_user
 
 (* ********** ********** *)
 
-// fun msdos_create (dir: inode_locked, dentry: dentry, 
-//   mode: int, nd: nameidata):  = "atsfs_msdos_create"
-implement msdos_create (dir, dentry, modet, nd) = let
+// fun msdos_create {l:agz} (pf_buf: bytes($AFT.MSDOS_NAME)@ l |
+//   p_buf: ptr l, dir: & $AFT.inode_locked, dentry: & $AFT.dentry, 
+//   mode: int, nd: & $AFT.nameidata): [i: int | i <= 0] $AFT.errno_t i 
+implement msdos_create {p_buf} (pf_buf | p_buf, dir, dentry, modet, nd) = let
+  // lock the super block
   val (vo_sb | psb) = inode_locked2super_block (dir)
   prval (pf_sb, fpf_sb) = viewout_decode (vo_sb)
-
   val (pf_sb_lock | ()) = lock_super (!psb)
 
   var len: int ?
   val (vo_d_name | d_name) = dentry_get_d_name (dentry, len)
   prval (pf_d_name, fpf_d_name) = viewout_decode (vo_d_name)
 
-  var !p_buf with pf_buf = @[byte][MSDOS_NAME]()
+  // var !p_buf with pf_buf = @[byte][MSDOS_NAME]()
 
+  // get mount options
   val (vo_sbi | psbi) = sb2fat_sb (!psb)
   prval (pf_sbi, fpf_sbi) = viewout_decode (vo_sbi)
-
   val (vo_mount_opt | p_mount_opt) = fat_sb2fat_mount_options (!psbi)
   prval (pf_mopt, fpf_mopt) = viewout_decode (vo_mount_opt)
+  prval () = fpf_sbi (pf_sbi)  // no use of sbi any more
 
   val err = msdos_format_name (pf_d_name, pf_buf | d_name, len, p_buf, !p_mount_opt)
+  prval () = fpf_mopt (pf_mopt)
 
   viewdef V = bytes(MSDOS_NAME)? @ p_buf
 in
@@ -65,8 +69,6 @@ in
     prval InsRight_v (pf) = pf_buf
     prval () = pf_buf := pf
 
-    prval () = fpf_mopt (pf_mopt)
-    prval () = fpf_sbi (pf_sbi)
     prval () = fpf_d_name (pf_d_name)
 
     val () = unlock_super (pf_sb_lock | !psb)
@@ -78,6 +80,7 @@ in
     (* foo vs .foo conflict *)
     val is_hid = (d_name->[0] = byte_of_char ('.')) && 
                  (p_buf->[0] <> byte_of_char ('.'))
+    prval () = fpf_d_name (pf_d_name)
 
     var sinfo: fat_slot_info?
     val (pf_opt_exist | err) = fat_scan (pf | dir, p_buf, sinfo)
@@ -86,10 +89,6 @@ in
       prval None_v () = pf_opt_exist
 
       val () = fat_slot_info_clear (sinfo)
-
-      prval () = fpf_mopt (pf_mopt)
-      prval () = fpf_sbi (pf_sbi)
-      prval () = fpf_d_name (pf_d_name)
   
       prval () = pf_buf := pf
   
@@ -104,31 +103,44 @@ in
       val () = CURRENT_TIME_SEC (ts)
       val err = msdos_add_entry (pf_not_exist, pf |
          dir, p_buf, false, is_hid, FAT_ENT_FREE, ts, sinfo)
+      prval () = pf_buf := pf
     in
       if (int1_of_errno1 (err) <> 0) then let
+        (* error return *)
         val () = fat_slot_info_clear (sinfo)
-
-        prval () = pf_buf := pf
-        prval () = fpf_mopt (pf_mopt)
-        prval () = fpf_sbi (pf_sbi)
-        prval () = fpf_d_name (pf_d_name)
   
         val () = unlock_super (pf_sb_lock | !psb)
         prval () = fpf_sb (pf_sb)
       in
         err
       end else let
-        val () = fat_slot_info_clear (sinfo)
+        
+        val (pf_opt_new_inode | inode_ptr_err) = 
+          fat_build_inode (!psb, sinfo.de, sinfo.i_pos)
 
-        prval () = pf_buf := pf
-        prval () = fpf_mopt (pf_mopt)
-        prval () = fpf_sbi (pf_sbi)
-        prval () = fpf_d_name (pf_d_name)
-  
-        val () = unlock_super (pf_sb_lock | !psb)
-        prval () = fpf_sb (pf_sb)
+        val () = fat_slot_info_clear (sinfo)
+        val is_ptr = IS_ERROR (inode_ptr_err)
       in
-        errno1_of_int1 0
+        if is_ptr = false then let
+          val err = opt_ptr_err_bad (inode_ptr_err)
+          prval None_v () = pf_opt_new_inode
+    
+          val () = unlock_super (pf_sb_lock | !psb)
+          prval () = fpf_sb (pf_sb)
+        in
+          err
+        end else let
+          prval () = opt_ptr_err_good (inode_ptr_err)
+          prval Some_v (pf_new_inode) = pf_opt_new_inode
+
+          val () = inode_init_time (pf_new_inode | inode_ptr_err)
+          val () = d_instantiate (dentry, inode_ptr_err)
+
+          val () = unlock_super (pf_sb_lock | !psb)
+          prval () = fpf_sb (pf_sb)
+        in
+          errno1_of_int1 (0)
+        end
       end
     end 
   end

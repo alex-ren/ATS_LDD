@@ -6,6 +6,10 @@
 
 #define ATS_STALOADFLAG 0
 
+%{#
+#include "ATS/ats_fat_dir.cats"
+%}  // end of [%{]
+
 staload AFT = "ats_fs_types.sats"
 staload AFC = "ats_fat_cache.sats"
 

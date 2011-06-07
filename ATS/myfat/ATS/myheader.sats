@@ -13,7 +13,8 @@
 #include "contrib/linux/include/ats_basics.h"
 #include "contrib/linux/include/ats_memory.h"
 
-#include "ATS/include/atsfs_types.h"
+#include "ATS/include/atsfs_basic_types.h"
+#include "ATS/include/atsfs_fat.cats"
 
 
 #include "contrib/linux/CATS/array.cats"
@@ -21,7 +22,6 @@
 #include "contrib/linux/CATS/pointer.cats"
 #include "contrib/linux/CATS/sizetype.cats"
 
-#include "ATS/include/atsfs_fat.cats"
 
 
 //

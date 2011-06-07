@@ -89,55 +89,13 @@ error:
 static int msdos_create(struct inode *dir, struct dentry *dentry, int mode,
 			struct nameidata *nd)
 {
-        return atsfs_msdos_create(dir, dentry, mode, nd);
-#if 0
-	struct super_block *sb = dir->i_sb;
-	struct inode *inode = NULL;
-	struct fat_slot_info sinfo;
-	struct timespec ts;
-	unsigned char msdos_name[MSDOS_NAME];
-	int err, is_hid;
-        printk (KERN_INFO "myfat: msdos_create\n");
-
-	lock_super(sb);
-
-	err = msdos_format_name(dentry->d_name.name, dentry->d_name.len,
-				msdos_name, &MSDOS_SB(sb)->options);
-	if (err)
-		goto out;
-	is_hid = (dentry->d_name.name[0] == '.') && (msdos_name[0] != '.');
-	/* Have to do it due to foo vs. .foo conflicts */
-	if (!fat_scan(dir, msdos_name, &sinfo)) {
-		brelse(sinfo.bh);
-		err = -EINVAL;
-		goto out;
-	}
-
-	ts = CURRENT_TIME_SEC;
-	err = msdos_add_entry(dir, msdos_name, 0, is_hid, 0, &ts, &sinfo);
-	if (err)
-		goto out;
-	inode = fat_build_inode(sb, sinfo.de, sinfo.i_pos);
-	brelse(sinfo.bh);
-	if (IS_ERR(inode)) {
-		err = PTR_ERR(inode);
-		goto out;
-	}
-	inode->i_mtime = inode->i_atime = inode->i_ctime = ts;
-	/* timestamp is already written, so mark_inode_dirty() is unneeded. */
-
-	d_instantiate(dentry, inode);
-out:
-	unlock_super(sb);
-	if (!err)
-		err = fat_flush_inodes(sb, dir, inode);
-	return err;
-#endif
+        unsigned char buf[MSDOS_NAME];
+        return atsfs_msdos_create(buf, dir, dentry, mode, nd);
 }
 
 
 const struct inode_operations msdos_dir_inode_operations = {
-	.create		= 0,  // todo msdos_create,
+	.create		= msdos_create,
 	.lookup		= msdos_lookup,
 	.unlink		= 0,  // todo msdos_unlink,
 	.mkdir		= 0,  // todo msdos_mkdir,

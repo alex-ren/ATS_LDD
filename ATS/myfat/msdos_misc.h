@@ -2,6 +2,9 @@
 #define MSDOS_MISC_H
 
 #include "sb_mgr.h"
+#include "fat_dir.h"
+#include "fat_inode.h"
+#include "fat_misc.h"
 
 /* Characters that are undesirable in an MS-DOS file name */
 static unsigned char bad_chars[] = "*?<>|\"";
@@ -103,6 +106,45 @@ static int msdos_format_name(const unsigned char *name, int len,
 	}
 	while (walk - res < MSDOS_NAME)
 		*walk++ = ' ';
+
+	return 0;
+}
+
+/***** Creates a directory entry (name is already formatted). */
+static int msdos_add_entry(struct inode *dir, const unsigned char *name,
+			   int is_dir, int is_hid, int cluster,
+			   struct timespec *ts, struct fat_slot_info *sinfo)
+{
+	struct fat_sb_info *sbi = MSDOS_SB(dir->i_sb);
+	struct msdos_dir_entry de;
+	__le16 time, date;
+	int err;
+        // printk (KERN_INFO "myfat: msdos_add_entry\n");
+
+	memcpy(de.name, name, MSDOS_NAME);
+	de.attr = is_dir ? ATTR_DIR : ATTR_ARCH;
+	if (is_hid)
+		de.attr |= ATTR_HIDDEN;
+	de.lcase = 0;
+	fat_time_unix2fat(sbi, ts, &time, &date, NULL);
+	de.cdate = de.adate = 0;
+	de.ctime = 0;
+	de.ctime_cs = 0;
+	de.time = time;
+	de.date = date;
+	de.start = cpu_to_le16(cluster);
+	de.starthi = cpu_to_le16(cluster >> 16);
+	de.size = 0;
+
+	err = fat_add_entries(dir, &de, 1, sinfo);
+	if (err)
+		return err;
+
+	dir->i_ctime = dir->i_mtime = *ts;
+	if (IS_DIRSYNC(dir))
+		(void)fat_sync_inode(dir);
+	else
+		mark_inode_dirty(dir);
 
 	return 0;
 }

@@ -11,7 +11,7 @@
 
 #include <linux/fs.h>
 
-#include "ATS/include/atsfs_types.h"
+#include "ATS/include/atsfs_basic_types.h"
 
 /* ****** ****** */
 /* ****** ****** */

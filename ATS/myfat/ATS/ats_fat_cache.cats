@@ -6,7 +6,7 @@
 /* ************* *************** */
 
 #ifndef ATS_FAT_CACHE_CATS
-#define ATS_FS_CACHE_CATS 
+#define ATS_FAT_CACHE_CATS 
 
 #include "ATS/ats_fs_types.h"
 

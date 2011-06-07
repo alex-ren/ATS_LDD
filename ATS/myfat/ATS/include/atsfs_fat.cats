@@ -37,7 +37,6 @@
 #define ATSFS_FS_CATS
 
 
-
 ATSinline()
 ats_bool_type
 atspre_eq_bool1_bool1 (ats_bool_type b1, ats_bool_type b2) {
@@ -50,6 +49,10 @@ atspre_add_bool1_bool1(ats_bool_type b1, ats_bool_type b2)
 {
     return b1 + b2;
 }
+
+// #define ptrof_error(a) (void *)a  // todo
+
+#define ATS_ALLOCA2(n, sz) alloca((n)*(sz))
 
 #endif
 

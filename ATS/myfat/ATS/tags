@@ -4,6 +4,7 @@
 !_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
 
 CURRENT_TIME_SEC	ats_msdos_misc.sats	/^fun CURRENT_TIME_SEC/;"	kind: definition
+IS_ERROR	ats_fs_types.sats	/^fun IS_ERROR /;"	kind: definition
 
 a0rg	absyn.sats	/^and a0rg = @{$/;"	kind: declaration
 
@@ -14,20 +15,38 @@ aux_exp	trans2.dats	/^extern fun aux_exp /;"	kind: declaration
 aux_exp_ret	trans2.dats	/^aux_exp_ret /;"	kind: declaration 
 aux_exp_ret	trans2.dats	/^extern fun aux_exp_ret /;"	kind: implementation 
 
+copy_clusters_impl	ats_fat_file.sats	/^fun copy_clusters_impl/;"	kind: definition
+copy_cluster_impl	ats_fat_file.sats	/^fun copy_cluster_impl/;"	kind: definition
+copy_phyblocks_impl	ats_fat_file.sats	/^fun copy_phyblocks_impl/;"	kind: definition
+copy_phyblock_impl	ats_fat_file.sats	/^fun copy_phyblock_impl/;"	kind: definition
+
 dentry	ats_fs_types.sats	/^viewtypedef dentry /;"	kind: definition
+dentry_get_d_name	ats_fs_types.sats	/^fun dentry_get_d_name /;"	kind: definition
 dentry_ptr	ats_fs_types.sats	/^absviewtype dentry_ptr /;"	kind: definition
 d_instantiate	ats_fs_types.sats	/^fun d_instantiate/;"	kind: definition
+errno_t	ats_fs_types.sats	/^abst@ype errno_t /;"	kind: definition
 
+fat_slot_info	ats_fat_dir.sats	/^viewtypedef fat_slot_info /;"	kind: definition
+fat_slot_info_clear	ats_fat_dir.sats	/^fun fat_slot_info_clear /;"	kind: definition
+fat_sync_read	ats_fat_file.sats	/^fun fat_sync_read/;"	kind: definition
 inode	ats_fs_types.sats	/^viewtypedef inode/;"	kind: definition
+inode_locked2super_block	ats_fs_types.sats	/^fun inode_locked2super_block /;"	kind: definition
 inode_own	ats_fs_types.sats	/^viewtypedef inode_own/;"	kind: definition
+lock_super	ats_fs_types.sats	/^fun lock_super /;"	kind: definition
+loff_ldiv_loff	ats_fs_types.sats	/^fun loff_ldiv_loff/;"	kind: definition
 loff_t	ats_fs_types.sats	/^abst@ype loff_t/;"	kind: definition
+msdos_format_name	ats_msdos_misc.sats	/^fun msdos_format_name /;"	kind: definition
 super_block	ats_fs_types.sats	/^viewtypedef super_block/;"	kind: definition
 
 fat_build_inode	ats_fat_inode.sats	/^fun fat_build_inode/;"	kind: definition
 msdos_add_entry	ats_msdos_misc.sats	/^fun msdos_add_entry/;"	kind: definition
 
 oftype_valdec	trans1.dats	419;"	kind:macro 
+opt_ptr_error	ats_fs_types.sats	/^absviewtype opt_ptr_error /;"	kind: definition
+opt_ptr_err_good	ats_fs_types.sats	/^praxi opt_ptr_err_good/;"	kind: definition
+opt_ptr_err_bad	ats_fs_types.sats	/^fun opt_ptr_err_bad /;"	kind: definition
 
 tmpvar_get_name	trans2.sats	/^fun tmpvar_get_name (v: tmpvar): string$/;" kind declaration 
+unlock_super	ats_fs_types.sats	/^fun unlock_super /;"	kind: definition
 
 

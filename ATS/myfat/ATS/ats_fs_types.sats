@@ -128,16 +128,21 @@ macdef EINVAL = $extval ([i: pos] errno_t i, "EINVAL")
 
 (* ************** ************* *)
 
-absviewtype
-  opt_ptr_error (a: viewtype, good: bool) = a
+absviewtype opt_ptr_error (a: viewtype, good: bool) = a
 
 praxi opt_ptr_err_good {a:viewtype} (x: !opt_ptr_error (a, true) >> a):<prf> void
 
-fun opt_ptr_err_bad {a:viewtype} (x: opt_ptr_error (a, false)): errno_t
+fun opt_ptr_err_bad {a:viewtype} (x: opt_ptr_error (a, false)): [e:int | e < 0] errno_t e
 
 (* ************** ************* *)
 
 #define MSDOS_NAME 11
+
+(* ************** ************* *)
+
+viewtypedef timespec = $extype_struct "timespec_struct" of {
+  empty = empty
+}
 
 (* ************** ************* *)
 
@@ -173,7 +178,7 @@ absview inode_born (ino: int)
 
 // todo this is too special
 fun inode_init_time {ino: int} {l: addr} (
-  pf: inode_born ino | inode: inode_ptr (ino, l)): void
+  pf: inode_born ino | inode: !inode_ptr (ino, l)): void
 
 viewtypedef super_block = $extype_struct "super_block_struct" of {
   empty = empty
@@ -198,6 +203,7 @@ viewtypedef dentry = $extype_struct "dentry_struct" of {
 }
 
 absviewtype dentry_ptr (l: addr) = $extype "struct dentry *"
+
 
 viewtypedef fat_sb_info = $extype_struct "fat_sb_info_struct" of {
   empty = empty,
@@ -264,7 +270,7 @@ fun lock_super (sb: &super_block): (super_block_locked | void)
 fun unlock_super (pf: super_block_locked | sb: &super_block):<fun1> void
   = "mac#atsfs_unlock_super"
 
-fun dentry_get_d_name (dentry: !dentry, n: & int? >> int n): 
+fun dentry_get_d_name (dentry: &dentry, n: & int? >> int n): 
   #[n:pos] [l: agz]($UN.viewout (bytes (n) @ l) | ptr l)
   = "mac#atsfs_dentry_get_d_name"
 
@@ -342,10 +348,10 @@ overload mod with loff_mod_loff
 fun BUG_ON {b: bool} (b: bool b): [b == true] void
 = "mac#BUG_ON"
 
-fun IS_ERROR {a:viewtype} {b: bool} (ptr: opt_ptr_error (a, b)): bool b
+fun IS_ERROR {a:viewtype} {b: bool} (ptr: !opt_ptr_error (a, b)): bool b
 
-fun d_instantiate {ld: agz} {l:addr} {ino: int} (
-  dentry: !dentry_ptr ld, inode: inode_ptr (ino, l)): void
+fun d_instantiate {l:addr} {ino: int} (
+  dentry: &dentry, inode: inode_ptr (ino, l)): void
 
 
 

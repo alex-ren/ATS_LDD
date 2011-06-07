@@ -10,13 +10,13 @@
 
 #include <linux/fs.h>
 
-#include "ATS/include/atsfs_types.h"
+#include "ATS/include/atsfs_basic_types.h"
 
 // int msdos_create(struct inode *dir, struct dentry *dentry, int mode,
 // 			struct nameidata *nd)
 ats_int_type
-atsfs_msdos_create (ats_ref_type arg0, ats_ref_type arg1, 
-  ats_int_type arg2, ats_ref_type arg3);
+atsfs_msdos_create(ats_ptr_type p_buf, ats_ref_type dir, ats_ref_type dentry, 
+  ats_int_type mode, ats_ref_type nd);
 
 #endif
 

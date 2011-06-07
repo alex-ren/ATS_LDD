@@ -95,6 +95,7 @@ void fat_attach(struct inode *inode, loff_t i_pos);
 struct inode *fat_build_inode(struct super_block *sb,
 			struct msdos_dir_entry *de, loff_t i_pos);
 
+int fat_sync_inode(struct inode *inode);
 
 #endif
 

@@ -21,8 +21,10 @@ staload Basics = "contrib/linux/basics.sats"
 staload AFT = "ats_fs_types.sats"
 
 (* ********* ********* *)
-fun msdos_create (dir: & $AFT.inode_locked, dentry: & $AFT.dentry, 
-  mode: int, nd: & $AFT.nameidata): [i: int | i <= 0] $AFT.errno_t i = "atsfs_msdos_create"
+fun msdos_create {l:agz} (pf_buf: !bytes($AFT.MSDOS_NAME)? @ l |
+  p_buf: ptr l, dir: & $AFT.inode_locked, dentry: & $AFT.dentry, 
+  mode: int, nd: & $AFT.nameidata): [i: int | i <= 0] $AFT.errno_t i 
+  = "atsfs_msdos_create"
 
 
 

@@ -72,7 +72,7 @@ fun copy_cluster_impl
   pf_buf: !bytes(n) @ pbuf |
   sb: &($AFT.super_block),
   pbuf: $Basics.uptr pbuf,
-  ofs: &($AFT.loff_t (ofs)),
+  ofs: $AFT.loff_t (ofs),
   len: size_t (len),
   ncls: $AFT.ncluster_valid,
   err: &($AFT.errno_t e) >> $AFT.errno_t pe
@@ -109,7 +109,7 @@ fun copy_phyblock_impl
   pf_buf: !bytes(n) @ pbuf |
   sb: &($AFT.super_block),
   pbuf: $Basics.uptr pbuf,
-  ofs: &($AFT.loff_t (ofs)),
+  ofs: $AFT.loff_t (ofs),
   len: size_t (len),
   nblk: $AFT.nblock,
   err: &($AFT.errno_t 0) >> $AFT.errno_t pe

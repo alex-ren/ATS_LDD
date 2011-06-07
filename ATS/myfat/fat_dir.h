@@ -27,6 +27,8 @@ int fat_subdirs(struct inode *dir);
  */
 int fat_scan(struct inode *dir, const unsigned char *name, struct fat_slot_info *sinfo);
 
+int fat_add_entries(struct inode *dir, void *slots, int nr_slots,
+			   struct fat_slot_info *sinfo);
 #endif
 
 

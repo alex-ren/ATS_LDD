@@ -78,11 +78,12 @@ typedef struct { void *closure_fun ; } ats_clo_type ;
 typedef ats_clo_type *ats_clo_ptr_type ;
 typedef ats_clo_type *ats_clo_ref_type ;
 
+
 /* ****** ****** */
 
 #endif /* ATSFS_TYPES_H */
 
-/* end of [atsfs_types.h] */
+/* end of [atsfs_basic_types.h] */
 
 
 

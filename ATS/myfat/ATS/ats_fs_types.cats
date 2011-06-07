@@ -36,6 +36,24 @@ ats_ptr_type atsfs_sb2fat_sb(super_block_struct *sb)
     return MSDOS_SB(sb);
 }
 
+ATSinline ()
+ats_void_type atsfs_lock_super (super_block_struct *sb)
+{
+    lock_super(sb);
+}
+
+ATSinline ()
+ats_void_type atsfs_unlock_super (super_block_struct *sb)
+{
+    unlock_super(sb);
+}
+
+ATSinline ()
+ats_ptr_type atsfs_dentry_get_d_name(dentry_struct *de, int *n)
+{
+    *n = de->d_name.len;
+    return (ats_ptr_type)de->d_name.name;
+}
 
 #endif
 
