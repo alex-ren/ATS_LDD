@@ -53,6 +53,15 @@ void fat32_ent_put(struct fat_entry *fatent, int new);
 int fatent_next(struct inode *inode, int curent, int *nxtent);
 int fatent_next_sb(struct super_block *sb, int curent, int *nxtent);
 
+int fat_alloc_clusters(struct inode *inode, int *cluster,
+			      int nr_cluster);
+int fat_free_clusters(struct inode *inode, int cluster);
+
+int fat_ent_read(struct inode *inode, struct fat_entry *fatent,
+			int entry);
+int fat_ent_write(struct inode *inode, struct fat_entry *fatent,
+			 int new, int wait);
+
 #endif
 
 

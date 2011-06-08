@@ -5,17 +5,84 @@
 #include "fat_misc.h"
 
 // #include <linux/msdos_fs.h>
-/*
-* Desc: transform no. of entry in FAT (or the no. of cluster in data region)
-*   to the number of sectors in the volume
-*
-*/
-static inline sector_t fat_clus_to_blknr(struct fat_sb_info *sbi, int clus)
+
+/* this must be > 0. */
+#define FAT_MAX_CACHE	8
+
+struct fat_cache {
+	struct list_head cache_list;
+	int nr_contig;	/* number of contiguous clusters */
+	int fcluster;	/* cluster number in the file. */
+	int dcluster;	/* cluster number on disk. */
+};
+
+static struct kmem_cache *fat_cache_cachep;
+
+
+
+static void init_once(void *foo)
 {
-        printk (KERN_INFO "myfat: fat_clus_to_blknr\n");
-	return ((sector_t)clus - FAT_START_ENT) * sbi->sec_per_clus
-		+ sbi->data_start;
+	struct fat_cache *cache = (struct fat_cache *)foo;
+
+	INIT_LIST_HEAD(&cache->cache_list);
 }
+
+int __init fat_cache_init(void)
+{
+	fat_cache_cachep = kmem_cache_create("fat_cache",
+				sizeof(struct fat_cache),
+				0, SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD,
+				init_once);
+	if (fat_cache_cachep == NULL)
+		return -ENOMEM;
+	return 0;
+}
+
+void fat_cache_destroy(void)
+{
+	kmem_cache_destroy(fat_cache_cachep);
+}
+
+static inline struct fat_cache *fat_cache_alloc(struct inode *inode)
+{
+	return kmem_cache_alloc(fat_cache_cachep, GFP_NOFS);
+}
+
+static inline void fat_cache_free(struct fat_cache *cache)
+{
+	BUG_ON(!list_empty(&cache->cache_list));
+	kmem_cache_free(fat_cache_cachep, cache);
+}
+
+
+/*
+ * Cache invalidation occurs rarely, thus the LRU chain is not updated. It
+ * fixes itself after a while.
+ */
+static void __fat_cache_inval_inode(struct inode *inode)
+{
+	struct fat_inode_info *i = MSDOS_I(inode);
+	struct fat_cache *cache;
+
+	while (!list_empty(&i->cache_lru)) {
+		cache = list_entry(i->cache_lru.next, struct fat_cache, cache_list);
+		list_del_init(&cache->cache_list);
+		i->nr_caches--;
+		fat_cache_free(cache);
+	}
+	/* Update. The copy of caches before this id is discarded. */
+	i->cache_valid_id++;
+	if (i->cache_valid_id == FAT_CACHE_VALID)
+		i->cache_valid_id++;
+}
+
+void fat_cache_inval_inode(struct inode *inode)
+{
+	spin_lock(&MSDOS_I(inode)->cache_lru_lock);
+	__fat_cache_inval_inode(inode);
+	spin_unlock(&MSDOS_I(inode)->cache_lru_lock);
+}
+
 
 /*
 * fun: map no. of cluster in file to no. of cluster in the data region on the disk
@@ -175,3 +242,4 @@ int fat_bmap(struct inode *inode, sector_t sector, sector_t *phys,
     }
     return 0;
 }
+

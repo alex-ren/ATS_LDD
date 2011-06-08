@@ -1,5 +1,9 @@
 #include "fat_misc.h"
 #include "sb_mgr.h"
+#include "fat_inode.h"
+#include "fat_cache.h"
+#include "fat_entry.h"
+#include "fat.h"
 
 #include <linux/module.h>
 
@@ -153,3 +157,120 @@ void fat_time_unix2fat(struct fat_sb_info *sbi, struct timespec *ts,
 		*time_cs = (ts->tv_sec & 1) * 100 + ts->tv_nsec / 10000000;
 }
 EXPORT_SYMBOL_GPL(fat_time_unix2fat);
+
+int fat_sync_bhs(struct buffer_head **bhs, int nr_bhs)
+{
+	int i, err = 0;
+
+	ll_rw_block(SWRITE, nr_bhs, bhs);
+	for (i = 0; i < nr_bhs; i++) {
+		wait_on_buffer(bhs[i]);
+		if (buffer_eopnotsupp(bhs[i])) {
+			clear_buffer_eopnotsupp(bhs[i]);
+			err = -EOPNOTSUPP;
+		} else if (!err && !buffer_uptodate(bhs[i]))
+			err = -EIO;
+	}
+	return err;
+}
+
+/*
+ * fat_chain_add() adds a new cluster to the chain of clusters represented
+ * by inode.
+ */
+int fat_chain_add(struct inode *inode, int new_dclus, int nr_cluster)
+{
+	struct super_block *sb = inode->i_sb;
+	struct fat_sb_info *sbi = MSDOS_SB(sb);
+	int ret, new_fclus, last;
+
+	/*
+	 * We must locate the last cluster of the file to add this new
+	 * one (new_dclus) to the end of the link list (the FAT).
+	 */
+	last = new_fclus = 0;
+	if (MSDOS_I(inode)->i_start) {
+		int fclus, dclus;
+
+		ret = fat_get_cluster(inode, FAT_ENT_EOF, &fclus, &dclus);
+		if (ret < 0)
+			return ret;
+		new_fclus = fclus + 1;
+		last = dclus;
+	}
+
+	/* add new one to the last of the cluster chain */
+	if (last) {
+		struct fat_entry fatent;
+
+		fatent_init(&fatent);
+		ret = fat_ent_read(inode, &fatent, last);
+		if (ret >= 0) {
+			int wait = inode_needs_sync(inode);
+			ret = fat_ent_write(inode, &fatent, new_dclus, wait);
+			fatent_brelse(&fatent);
+		}
+		if (ret < 0)
+			return ret;
+//		fat_cache_add(inode, new_fclus, new_dclus);
+	} else {
+		MSDOS_I(inode)->i_start = new_dclus;
+		MSDOS_I(inode)->i_logstart = new_dclus;
+		/*
+		 * Since generic_write_sync() synchronizes regular files later,
+		 * we sync here only directories.
+		 */
+		if (S_ISDIR(inode->i_mode) && IS_DIRSYNC(inode)) {
+			ret = fat_sync_inode(inode);
+			if (ret)
+				return ret;
+		} else
+			mark_inode_dirty(inode);
+	}
+	if (new_fclus != (inode->i_blocks >> (sbi->cluster_bits - 9))) {
+		fat_fs_error(sb, "clusters badly computed (%d != %llu)",
+			     new_fclus,
+			     (llu)(inode->i_blocks >> (sbi->cluster_bits - 9)));
+		fat_cache_inval_inode(inode);
+	}
+	inode->i_blocks += nr_cluster << (sbi->cluster_bits - 9);
+
+	return 0;
+}
+
+/* Flushes the number of free clusters on FAT32 */
+/* XXX: Need to write one per FSINFO block.  Currently only writes 1 */
+int fat_clusters_flush(struct super_block *sb)
+{
+	struct fat_sb_info *sbi = MSDOS_SB(sb);
+	struct buffer_head *bh;
+	struct fat_boot_fsinfo *fsinfo;
+
+	if (sbi->fat_bits != 32)
+		return 0;
+
+	bh = sb_bread(sb, sbi->fsinfo_sector);
+	if (bh == NULL) {
+		printk(KERN_ERR "FAT: bread failed in fat_clusters_flush\n");
+		return -EIO;
+	}
+
+	fsinfo = (struct fat_boot_fsinfo *)bh->b_data;
+	/* Sanity check */
+	if (!IS_FSINFO(fsinfo)) {
+		printk(KERN_ERR "FAT: Invalid FSINFO signature: "
+		       "0x%08x, 0x%08x (sector = %lu)\n",
+		       le32_to_cpu(fsinfo->signature1),
+		       le32_to_cpu(fsinfo->signature2),
+		       sbi->fsinfo_sector);
+	} else {
+		if (sbi->free_clusters != -1)
+			fsinfo->free_clusters = cpu_to_le32(sbi->free_clusters);
+		if (sbi->prev_free != -1)
+			fsinfo->next_cluster = cpu_to_le32(sbi->prev_free);
+		mark_buffer_dirty(bh);
+	}
+	brelse(bh);
+
+	return 0;
+}

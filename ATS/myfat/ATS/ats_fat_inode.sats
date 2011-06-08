@@ -25,6 +25,7 @@ fun fat_build_inode {ld: agz} (
   i_pos: $AFT.loff_t):
   [l: addr] [ino: int] [b: bool] (option_v ($AFT.inode_born ino, b) | 
   $AFT.opt_ptr_error ($AFT.inode_ptr (ino, l), b))
+  = "mac#atsfs_fat_build_inode"
 
 
 

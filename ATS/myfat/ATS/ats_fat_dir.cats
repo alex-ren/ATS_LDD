@@ -12,6 +12,14 @@
 
 typedef struct fat_slot_info fat_slot_info_struct;
 
+
+ATSinline ()
+ats_void_type atsfs_fat_slot_info_clear(ats_ref_type sinfo)
+{
+  brelse(((fat_slot_info_struct *)sinfo)->bh);
+}
+
+
 #endif
 
 

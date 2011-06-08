@@ -84,6 +84,17 @@ static inline void fat_save_attrs(struct inode *inode, u8 attrs)
 		MSDOS_I(inode)->i_attrs = attrs & (ATTR_UNUSED | ATTR_RO);
 }
 
+/* Return the FAT attribute byte for this inode */
+static inline u8 fat_make_attrs(struct inode *inode)
+{
+	u8 attrs = MSDOS_I(inode)->i_attrs;
+	if (S_ISDIR(inode->i_mode))
+		attrs |= ATTR_DIR;
+	if (fat_mode_can_hold_ro(inode) && !(inode->i_mode & S_IWUGO))
+		attrs |= ATTR_RO;
+	return attrs;
+}
+
 struct inode *fat_iget(struct super_block *sb, loff_t i_pos);
 
 void fat_detach(struct inode *inode);

@@ -38,7 +38,8 @@ fun fat_sync_read
 , p: $Basics.uptr l
 , n: size_t (n)
 , pos: &($AFT.loff_t (ofs)) >> ($AFT.loff_t (ofs + max(0,n1)))
-) : #[n1:int | n1 <= n] ssize_t (n1) = "atsfs_fat_sync_read"
+) : #[n1:int | n1 <= n] ssize_t (n1) 
+  = "atsfs_fat_sync_read"
 
 fun copy_clusters_impl
   {pinode:addr}

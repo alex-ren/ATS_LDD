@@ -11,9 +11,6 @@
 
 #include <linux/fs.h>
 /* ****** ****** */
-int foo (int i);
-
-// struct inode * ats_new_inode(struct super_block *sb);
 
 #endif
 

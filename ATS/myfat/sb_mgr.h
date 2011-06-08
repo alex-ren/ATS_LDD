@@ -80,7 +80,11 @@ struct fat_sb_info {
 	int dir_per_block_bits;	     /* log2(dir_per_block) */
 
 	int fatent_shift;  // by rzq: different value for FAT12, 16 and 32
-	struct fatent_operations *fatent_ops;
+
+        // by Zhiqiang Ren: we don't use this now
+        // only 32 bit fat
+	// struct fatent_operations *fatent_ops;  
+
 	struct inode *fat_inode;
 
 	spinlock_t inode_hash_lock;

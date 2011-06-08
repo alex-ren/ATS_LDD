@@ -36,10 +36,6 @@
 int fat_default_codepage = CONFIG_FAT_DEFAULT_CODEPAGE;
 char fat_default_iocharset[] = CONFIG_FAT_DEFAULT_IOCHARSET;
 
-static inline int myfoo (int i) {
-  return foo (i);
-}
-
 enum {
 	Opt_check_n, Opt_check_r, Opt_check_s, Opt_uid, Opt_gid,
 	Opt_umask, Opt_dmask, Opt_fmask, Opt_allow_utime, Opt_codepage,

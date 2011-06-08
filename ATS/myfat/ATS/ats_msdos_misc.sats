@@ -6,10 +6,16 @@
 
 #define ATS_STALOADFLAG 0
 
+%{#
+#include "ATS/ats_msdos_misc.cats"
+%}  // end of [%{]
+
 staload AFT = "ats_fs_types.sats"
 staload AFD = "ats_fat_dir.sats"
 
 fun CURRENT_TIME_SEC (ts: & $AFT.timespec? >> $AFT.timespec): void
+  = "mac#atsfs_CURRENT_TIME_SEC"
+
 
 fun msdos_format_name {n:pos} {l1, l2:agz} (
   pf_name: !bytes (n) @ l1,
@@ -23,7 +29,7 @@ fun msdos_format_name {n:pos} {l1, l2:agz} (
   buf: ptr l2,
   mount_options: & $AFT.fat_mount_options
   ): #[e:int | e <= 0] $AFT.errno_t e
-  = "ats_msdos_format_name"
+  = "mac#msdos_format_name"
 
 fun msdos_add_entry {l: agz} (
   pf_not_exist: $AFD.no_such_name, 
@@ -35,7 +41,7 @@ fun msdos_add_entry {l: agz} (
   cluster: $AFT.ncluster_valid,
   ts: & $AFT.timespec,
   sinfo: & $AFD.fat_slot_info): [e: int| e <=0] $AFT.errno_t e
-  = "ats_msdos_add_entry"
+  = "mac#atsfs_msdos_add_entry"
   
 
 

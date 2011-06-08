@@ -130,7 +130,7 @@ static int fat_sync_fs(struct super_block *sb, int wait)
 	if (sb->s_dirt) {
 		lock_super(sb);
 		sb->s_dirt = 0;
-		// err = fat_clusters_flush(sb);  // todo not flush yet
+		err = fat_clusters_flush(sb);  // todo check the code
 		unlock_super(sb);
 	}
 
@@ -150,7 +150,7 @@ static void fat_write_super(struct super_block *sb)
 	sb->s_dirt = 0;
 
 	if (!(sb->s_flags & MS_RDONLY))
-		1;  // fat_clusters_flush(sb); // todo not flush yet
+		fat_clusters_flush(sb); // todo not flush yet
 	unlock_super(sb);
 }
 
@@ -416,6 +416,88 @@ int fat_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 }
 EXPORT_SYMBOL_GPL(fat_getattr);
 
+
+static inline loff_t fat_i_pos_read(struct fat_sb_info *sbi,
+				    struct inode *inode)
+{
+	loff_t i_pos;
+#if BITS_PER_LONG == 32
+	spin_lock(&sbi->inode_hash_lock);
+#endif
+	i_pos = MSDOS_I(inode)->i_pos;
+#if BITS_PER_LONG == 32
+	spin_unlock(&sbi->inode_hash_lock);
+#endif
+	return i_pos;
+}
+
+static int fat_write_inode(struct inode *inode, int wait)
+{
+	struct super_block *sb = inode->i_sb;
+	struct fat_sb_info *sbi = MSDOS_SB(sb);
+	struct buffer_head *bh;
+	struct msdos_dir_entry *raw_entry;
+	loff_t i_pos;
+	int err;
+
+        printk (KERN_INFO "myfat: fat_write_inode\n");
+
+	if (inode->i_ino == MSDOS_ROOT_INO)
+		return 0;
+
+retry:
+	i_pos = fat_i_pos_read(sbi, inode);
+	if (!i_pos)
+		return 0;
+
+	bh = sb_bread(sb, i_pos >> sbi->dir_per_block_bits);
+	if (!bh) {
+		printk(KERN_ERR "FAT: unable to read inode block "
+		       "for updating (i_pos %lld)\n", i_pos);
+		return -EIO;
+	}
+	spin_lock(&sbi->inode_hash_lock);
+	if (i_pos != MSDOS_I(inode)->i_pos) {
+		spin_unlock(&sbi->inode_hash_lock);
+		brelse(bh);
+		goto retry;
+	}
+
+	raw_entry = &((struct msdos_dir_entry *) (bh->b_data))
+	    [i_pos & (sbi->dir_per_block - 1)];
+	if (S_ISDIR(inode->i_mode))
+		raw_entry->size = 0;
+	else
+		raw_entry->size = cpu_to_le32(inode->i_size);
+	raw_entry->attr = fat_make_attrs(inode);
+	raw_entry->start = cpu_to_le16(MSDOS_I(inode)->i_logstart);
+	raw_entry->starthi = cpu_to_le16(MSDOS_I(inode)->i_logstart >> 16);
+	fat_time_unix2fat(sbi, &inode->i_mtime, &raw_entry->time,
+			  &raw_entry->date, NULL);
+	if (sbi->options.isvfat) {
+		__le16 atime;
+		fat_time_unix2fat(sbi, &inode->i_ctime, &raw_entry->ctime,
+				  &raw_entry->cdate, &raw_entry->ctime_cs);
+		fat_time_unix2fat(sbi, &inode->i_atime, &atime,
+				  &raw_entry->adate, NULL);
+	}
+	spin_unlock(&sbi->inode_hash_lock);
+	mark_buffer_dirty(bh);
+	err = 0;
+	if (wait)
+		err = sync_dirty_buffer(bh);
+	brelse(bh);
+	return err;
+}
+
+// update the inode info onto disk
+int fat_sync_inode(struct inode *inode)
+{
+	return fat_write_inode(inode, 1);
+}
+
+EXPORT_SYMBOL_GPL(fat_sync_inode);
+
 const struct inode_operations fat_file_inode_operations = {
 	.truncate	= 0,  // fat_truncate,
 	.setattr	= 0,  // fat_setattr,
@@ -476,9 +558,9 @@ static int __init init_fat_fs(void)
 {
 	int err;
 
-	// err = fat_cache_init();  // todo
-	// if (err)
-	// 	return err;
+	err = fat_cache_init();
+	if (err)
+		return err;
 
 	err = fat_init_inodecache();
 	if (err)
@@ -487,13 +569,13 @@ static int __init init_fat_fs(void)
 	return 0;
 
 failed:
-	// fat_cache_destroy();
+	fat_cache_destroy();
 	return err;
 }
 
 static void __exit exit_fat_fs(void)
 {
-	// fat_cache_destroy();  // todo
+	fat_cache_destroy();
 	fat_destroy_inodecache();
 }
 

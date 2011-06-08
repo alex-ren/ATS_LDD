@@ -27,7 +27,9 @@ absview no_such_name
 fun fat_scan {l:agz} (pf_name: !bytes ($AFT.MSDOS_NAME) @ l |
   dir: & $AFT.inode_locked, name: ptr l, sinfo: &fat_slot_info ? >> fat_slot_info): 
   [e: nat] (option_v (no_such_name, e <> 0) |  $AFT.errno_t e)
+  = "mac#fat_scan"
 
 fun fat_slot_info_clear (sinfo: &fat_slot_info >> fat_slot_info ?): void
+  = "mac#atsfs_fat_slot_info_clear"
 
 

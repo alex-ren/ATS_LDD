@@ -8,7 +8,7 @@
 
 %{#
 #include "ATS/ats_fs_types.cats"
-%}
+%}  // end of [%{]
 
 (* ************** ************* *)
 staload UN = "prelude/SATS/unsafe.sats"
@@ -79,6 +79,7 @@ castfn int1_of_errno1 {i: int} (e: errno_t i):<> int i
 castfn errno1_of_int1 {i:int} (i: int i):<> errno_t i
 
 fun error_neg {e: int} (e: errno_t e): errno_t (~e)
+  = "mac#atsfs_error_neg"
 
 (* really ugly *)
 dataprop error_ret (int, int) =
@@ -133,6 +134,7 @@ absviewtype opt_ptr_error (a: viewtype, good: bool) = a
 praxi opt_ptr_err_good {a:viewtype} (x: !opt_ptr_error (a, true) >> a):<prf> void
 
 fun opt_ptr_err_bad {a:viewtype} (x: opt_ptr_error (a, false)): [e:int | e < 0] errno_t e
+  = "mac#atsfs_opt_ptr_err_bad"
 
 (* ************** ************* *)
 
@@ -178,7 +180,10 @@ absview inode_born (ino: int)
 
 // todo this is too special
 fun inode_init_time {ino: int} {l: addr} (
-  pf: inode_born ino | inode: !inode_ptr (ino, l)): void
+  pf: inode_born ino | inode: !inode_ptr (ino, l),
+  ts: &timespec): void
+  = "mac#atsfs_inode_init_time"
+
 
 viewtypedef super_block = $extype_struct "super_block_struct" of {
   empty = empty
@@ -259,8 +264,9 @@ fun sb2fat_sb (
 ) : [l:agz] ($UN.viewout (fat_sb_info @ l) | ptr l)
  = "mac#atsfs_sb2fat_sb"
 
-fun fat_sb2fat_mount_options (sbi: !fat_sb_info):
+fun fat_sb2fat_mount_options (sbi: &fat_sb_info):
   [l:agz] ($UN.viewout (fat_mount_options @ l) | ptr l)
+  = "mac#atsfs_fat_sb2fat_mount_options"
 
 absview super_block_locked
 
@@ -349,9 +355,11 @@ fun BUG_ON {b: bool} (b: bool b): [b == true] void
 = "mac#BUG_ON"
 
 fun IS_ERROR {a:viewtype} {b: bool} (ptr: !opt_ptr_error (a, b)): bool b
+  = "mac#atsfs_IS_ERROR"
 
 fun d_instantiate {l:addr} {ino: int} (
   dentry: &dentry, inode: inode_ptr (ino, l)): void
+  = "mac#atsfs_d_instantiate"
 
 
 

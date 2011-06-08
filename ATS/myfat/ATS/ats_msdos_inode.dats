@@ -37,7 +37,7 @@ macdef copy_from_user = $UACC.copy_from_user
 
 (* ********** ********** *)
 
-// fun msdos_create {l:agz} (pf_buf: bytes($AFT.MSDOS_NAME)@ l |
+// fun msdos_create {l:agz} (pf_buf: !bytes($AFT.MSDOS_NAME)? @ l |
 //   p_buf: ptr l, dir: & $AFT.inode_locked, dentry: & $AFT.dentry, 
 //   mode: int, nd: & $AFT.nameidata): [i: int | i <= 0] $AFT.errno_t i 
 implement msdos_create {p_buf} (pf_buf | p_buf, dir, dentry, modet, nd) = let
@@ -62,9 +62,9 @@ implement msdos_create {p_buf} (pf_buf | p_buf, dir, dentry, modet, nd) = let
   val err = msdos_format_name (pf_d_name, pf_buf | d_name, len, p_buf, !p_mount_opt)
   prval () = fpf_mopt (pf_mopt)
 
-  viewdef V = bytes(MSDOS_NAME)? @ p_buf
+  // viewdef V = bytes(MSDOS_NAME)? @ p_buf  // no use now
 in
-  if :(pf_buf: V) (* specify the master type *)=>
+  if // :(pf_buf: V) (* specify the master type *) =>   // no use now
     int1_of_errno1 (err) <> 0 then let
     prval InsRight_v (pf) = pf_buf
     prval () = pf_buf := pf
@@ -133,7 +133,7 @@ in
           prval () = opt_ptr_err_good (inode_ptr_err)
           prval Some_v (pf_new_inode) = pf_opt_new_inode
 
-          val () = inode_init_time (pf_new_inode | inode_ptr_err)
+          val () = inode_init_time (pf_new_inode | inode_ptr_err, ts)
           val () = d_instantiate (dentry, inode_ptr_err)
 
           val () = unlock_super (pf_sb_lock | !psb)

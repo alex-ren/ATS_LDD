@@ -50,9 +50,35 @@ atspre_add_bool1_bool1(ats_bool_type b1, ats_bool_type b2)
     return b1 + b2;
 }
 
-// #define ptrof_error(a) (void *)a  // todo
+ATSinline()
+ats_bool_type
+atspre_add_bool_bool (
+  ats_bool_type b1, ats_bool_type b2
+) {
+  if (b1) { return ats_true_bool ; } else { return b2 ; }
+} // end of [atspre_add_bool_bool]
 
-#define ATS_ALLOCA2(n, sz) alloca((n)*(sz))
+ATSinline()
+ats_bool_type
+atspre_mul_bool_bool (
+  ats_bool_type b1, ats_bool_type b2
+) {
+  if (b1) { return b2 ; } else { return ats_false_bool ; }
+} // end of [atspre_mul_bool_bool]
+
+
+ATSinline()
+ats_bool_type
+atspre_eq_byte_byte
+  (ats_byte_type b1, ats_byte_type b2) { return (b1 == b2) ; }
+// end of [atspre_eq_byte_byte]
+
+ATSinline()
+ats_bool_type
+atspre_neq_byte_byte
+  (ats_byte_type b1, ats_byte_type b2) { return (b1 != b2) ; }
+// end of [atspre_neq_byte_byte]
+
 
 #endif
 
