@@ -56,7 +56,7 @@ KERNELDIR ?= /lib/modules/$(KVERS)/build
 PWD       := $(shell pwd)
 
 modules:
-	$(MAKE) -C $(KERNELDIR) M=$(PWD) LDDINC=$(PWD)/../include modules
+	$(MAKE) -C $(KERNELDIR) M=$(PWD) LDDINC=$(PWD) modules
 
 endif
 
