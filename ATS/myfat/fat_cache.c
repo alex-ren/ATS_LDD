@@ -55,33 +55,37 @@ static inline void fat_cache_free(struct fat_cache *cache)
 }
 
 
-/*
+/* by the original author
  * Cache invalidation occurs rarely, thus the LRU chain is not updated. It
  * fixes itself after a while.
  */
-static void __fat_cache_inval_inode(struct inode *inode)
-{
-	struct fat_inode_info *i = MSDOS_I(inode);
-	struct fat_cache *cache;
+/*
+* I don't understand the comment above.
+* To me, this function just remove the cache list for the inode.
+*/
+// static void __fat_cache_inval_inode(struct inode *inode)
+// {
+// 	struct fat_inode_info *i = MSDOS_I(inode);
+// 	struct fat_cache *cache;
+// 
+// 	while (!list_empty(&i->cache_lru)) {
+// 		cache = list_entry(i->cache_lru.next, struct fat_cache, cache_list);
+// 		list_del_init(&cache->cache_list);
+// 		i->nr_caches--;
+// 		fat_cache_free(cache);
+// 	}
+// 	/* Update. The copy of caches before this id is discarded. */
+// 	i->cache_valid_id++;
+// 	if (i->cache_valid_id == FAT_CACHE_VALID)
+// 		i->cache_valid_id++;
+// }
 
-	while (!list_empty(&i->cache_lru)) {
-		cache = list_entry(i->cache_lru.next, struct fat_cache, cache_list);
-		list_del_init(&cache->cache_list);
-		i->nr_caches--;
-		fat_cache_free(cache);
-	}
-	/* Update. The copy of caches before this id is discarded. */
-	i->cache_valid_id++;
-	if (i->cache_valid_id == FAT_CACHE_VALID)
-		i->cache_valid_id++;
-}
-
-void fat_cache_inval_inode(struct inode *inode)
-{
-	spin_lock(&MSDOS_I(inode)->cache_lru_lock);
-	__fat_cache_inval_inode(inode);
-	spin_unlock(&MSDOS_I(inode)->cache_lru_lock);
-}
+// void fat_cache_inval_inode(struct inode *inode)
+// {
+// 	spin_lock(&MSDOS_I(inode)->cache_lru_lock);
+// 	__fat_cache_inval_inode(inode);
+// 	spin_unlock(&MSDOS_I(inode)->cache_lru_lock);
+// }
 
 
 /*

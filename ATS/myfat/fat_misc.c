@@ -207,6 +207,7 @@ int fat_chain_add(struct inode *inode, int new_dclus, int nr_cluster)
 		ret = fat_ent_read(inode, &fatent, last);
 		if (ret >= 0) {
 			int wait = inode_needs_sync(inode);
+                      wait = 1;  // todo fix wait to be 1
 			ret = fat_ent_write(inode, &fatent, new_dclus, wait);
 			fatent_brelse(&fatent);
 		}

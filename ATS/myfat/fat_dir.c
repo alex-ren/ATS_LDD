@@ -130,6 +130,25 @@ static inline int fat_get_entry(struct inode *dir, loff_t *pos,
     return fat__get_entry(dir, pos, bh, de);
 }
 
+/*
+* Desc: 
+*   1. If *bh and *de are not null and *(de + 1) is still in the bh
+*   then move pos and de to the next entry
+*   2. fill bh and de, let (*de) points to the entry designated by
+*   pos, then increase pos
+* Para:
+*   InOut:
+*   pos: the offset (in byte) of the entry in the whole dir file
+* Info:
+*   This function may alloc memory and put it into bh
+*   After the function call, the *pos is always one entry ahead of
+*   *de. We can keep calling this function to enumerate all the
+*   entries in the file.
+* Return:
+*   0: Succeed
+*   -ENOENT: Wrong
+* Atten: This function will not enlarge the dir file.
+*/
 static int fat_get_short_entry(struct inode *dir, loff_t *pos,
 			       struct buffer_head **bh,
 			       struct msdos_dir_entry **de)
@@ -138,7 +157,8 @@ static int fat_get_short_entry(struct inode *dir, loff_t *pos,
 		/* free entry or long name entry or volume label */
                 /* the file for root directory has a special entry containing the volume id
                    of the volume */
-		if (!IS_FREE((*de)->name) && !((*de)->attr & ATTR_VOLUME/*volume id*/))
+		if (!IS_FREE((*de)->name) /*a special indicating this entry is free*/
+			&& !((*de)->attr & ATTR_VOLUME/*volume id*/))
 			return 0;
 	}
 	return -ENOENT;
@@ -176,7 +196,7 @@ int fat_scan(struct inode *dir, const unsigned char *name, struct fat_slot_info 
 	while (fat_get_short_entry(dir, &sinfo->slot_off, &sinfo->bh,
 				   &sinfo->de) >= 0) {
 		if (!strncmp(sinfo->de->name, name, MSDOS_NAME)) {
-			sinfo->slot_off -= sizeof(*sinfo->de);
+			sinfo->slot_off -= sizeof(*sinfo->de);  // slot_off has been increased, so we have to decrease it back
 			sinfo->nr_slots = 1;
 			sinfo->i_pos = fat_make_i_pos(sb, sinfo->bh, sinfo->de);
 			return 0;
@@ -986,7 +1006,9 @@ error:
 /*
 * Desc: add certain amount of entries (corresponding to one file) to the dir file 
 * (maybe just one entry or multiple entries. It depends on the length of
-* the file name (long name).
+* the file name (long name). By "add" I mean update or append, it depends on
+* whether the existing dir file contains appropriate entries. If not, then we have
+* to actually enlarge the dir file to contain more entries.
 *
 * Para:
 *   fat_slot_info: out    
@@ -1013,6 +1035,9 @@ int fat_add_entries(struct inode *dir, void *slots, int nr_slots,
 	bh = prev = NULL;
 	pos = 0;
 	err = -ENOSPC;
+
+       // in the following while loop, we enumerate all the
+       // existing entries in the dir file
 	while (fat_get_entry(dir, &pos, &bh, &de) > -1) {
 		/* check the maximum size of directory */
 		if (pos >= FAT_MAX_DIR_SIZE)
