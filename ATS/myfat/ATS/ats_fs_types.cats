@@ -89,7 +89,7 @@ ats_void_type atsfs_d_instantiate(ats_ref_type dentry, struct inode *inode)
 }
 
 ATSinline ()
-ats_int_type atsfs_opt_ptr_err_bad(ats_ptr_type ptr)
+ats_int_type atsfs_opt_ptr_err_iserr(ats_ptr_type ptr)
 {
     return PTR_ERR(ptr);
 }

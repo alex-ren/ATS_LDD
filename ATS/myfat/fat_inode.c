@@ -22,6 +22,18 @@
 #include <linux/hash.h>
 #include <asm/unaligned.h>
 
+static const struct address_space_operations fat_aops = {
+	.readpage	= 0,  // fat_readpage,
+	.readpages	= 0,  // fat_readpages,
+	.writepage	= 0,  // fat_writepage,
+	.writepages	= 0,  // fat_writepages,
+	.sync_page	= 0,  // my_block_sync_page,
+	.write_begin	= 0,  // fat_write_begin,
+	.write_end	= 0,  // fat_write_end,
+	.direct_IO	= 0,  // fat_direct_IO,
+	.bmap		= 0  // _fat_bmap
+};
+
 
 
 static struct kmem_cache *fat_inode_cachep;
@@ -340,7 +352,11 @@ int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de)
 		inode->i_size = le32_to_cpu(de->size);
 		inode->i_op = &fat_file_inode_operations;
 		inode->i_fop = &fat_file_operations;
-		inode->i_mapping->a_ops = NULL;  // &fat_aops;:we don't use it anymore.
+		inode->i_mapping->a_ops = &fat_aops;  // all functions are zero
+
+                // todo: or we should use the next assignment, which one is correct?
+		// inode->i_mapping->a_ops = NULL;  // 
+		// inode->i_mapping = NULL;  // 
 		MSDOS_I(inode)->mmu_private = inode->i_size;
 	}
 	if (de->attr & ATTR_SYS) {

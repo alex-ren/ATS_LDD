@@ -9,6 +9,12 @@ static ssize_t fat_sync_read(struct file *filp,
     return atsfs_fat_sync_read(filp, buf, len, ppos);
 }
 
+static ssize_t fat_sync_write(struct file *filp, 
+  const char __user *buf, size_t len, loff_t *ppos)
+{
+    return -ENOSPC;
+}
+
 const struct file_operations fat_dir_operations = {
 	.llseek		= 0,  // todo my_generic_file_llseek,
 	.read		= 0,  // todo my_generic_read_dir,
@@ -23,7 +29,7 @@ const struct file_operations fat_dir_operations = {
 const struct file_operations fat_file_operations = {
 	.llseek		= 0,  // generic_file_llseek,
 	.read		= fat_sync_read,
-	.write		= 0,  // do_sync_write,
+	.write		= fat_sync_write,
 	.aio_read	= 0,  // generic_file_aio_read,
 	.aio_write	= 0,  // generic_file_aio_write,
 	.mmap		= 0,  // generic_file_mmap,

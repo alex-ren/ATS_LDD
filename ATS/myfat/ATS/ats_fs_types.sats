@@ -129,12 +129,12 @@ macdef EINVAL = $extval ([i: pos] errno_t i, "EINVAL")
 
 (* ************** ************* *)
 
-absviewtype opt_ptr_error (a: viewtype, good: bool) = a
+absviewtype opt_ptr_error (a: viewtype, iserr: bool)
 
-praxi opt_ptr_err_good {a:viewtype} (x: !opt_ptr_error (a, true) >> a):<prf> void
+praxi opt_ptr_err_isptr {a:viewtype} (x: !opt_ptr_error (a, false) >> a):<prf> void
 
-fun opt_ptr_err_bad {a:viewtype} (x: opt_ptr_error (a, false)): [e:int | e < 0] errno_t e
-  = "mac#atsfs_opt_ptr_err_bad"
+fun opt_ptr_err_iserr {a:viewtype} (x: opt_ptr_error (a, true)): [e:int | e < 0] errno_t e
+  = "mac#atsfs_opt_ptr_err_iserr"
 
 (* ************** ************* *)
 

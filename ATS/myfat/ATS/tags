@@ -49,8 +49,8 @@ msdos_add_entry	ats_msdos_misc.sats	/^fun msdos_add_entry/;"	kind: definition
 
 oftype_valdec	trans1.dats	419;"	kind:macro 
 opt_ptr_error	ats_fs_types.sats	/^absviewtype opt_ptr_error /;"	kind: definition
-opt_ptr_err_good	ats_fs_types.sats	/^praxi opt_ptr_err_good/;"	kind: definition
-opt_ptr_err_bad	ats_fs_types.sats	/^fun opt_ptr_err_bad /;"	kind: definition
+opt_ptr_err_iserr	ats_fs_types.sats	/^fun opt_ptr_err_iserr/;"	kind: definition
+opt_ptr_err_isptr	ats_fs_types.sats	/^praxi opt_ptr_err_isptr /;"	kind: definition
 
 timespec	ats_fs_types.sats	/^viewtypedef timespec/;"	kind: definition
 tmpvar_get_name	trans2.sats	/^fun tmpvar_get_name (v: tmpvar): string$/;" kind declaration 

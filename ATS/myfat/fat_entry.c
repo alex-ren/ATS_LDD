@@ -198,7 +198,11 @@ void fat_ent_access_init(struct super_block *sb)
 * Desc: get the no. of the next entry in the link list of FAT
 * Info: can return FAT_ENT_EOF and FAT_ENT_FREE
 * todo into ATS, the special kind of return value
-*
+* Para:
+*     In:
+*        curent: the no. of entry in the fat table.
+*     Out:
+*        nxtent: the no. of next entry following the linked list
 */
 int fatent_next_sb(struct super_block *sb, int curent, int *nxtent)
 {
@@ -251,7 +255,7 @@ static inline int fat_ent_update_ptr(struct super_block *sb,
 	/* Is this fatent's blocks including this entry? */
 	if (!fatent->nr_bhs || bhs[0]->b_blocknr != blocknr)
 		return 0;
-	if (sbi->fat_bits == 12) {
+	if (sbi->fat_bits == 12) {  // will not happen
 		if ((offset + 1) < sb->s_blocksize) {
 			/* This entry is on bhs[0]. */
 			if (fatent->nr_bhs == 2) {
@@ -272,6 +276,12 @@ static inline int fat_ent_update_ptr(struct super_block *sb,
 }
 
 
+/*
+* Desc: read certain entry in the fat table and update the fatent
+* Para:
+*    In: inode, entry
+*    InOut: fatent
+*/
 int fat_ent_read(struct inode *inode, struct fat_entry *fatent, int entry)
 {
 	struct super_block *sb = inode->i_sb;
@@ -290,6 +300,7 @@ int fat_ent_read(struct inode *inode, struct fat_entry *fatent, int entry)
 	// ops->ent_blocknr(sb, entry, &offset, &blocknr);
 	fat_ent_blocknr(sb, entry, &offset, &blocknr);
 
+	// if the entry we want is not currently in the buffer of fatent
 	if (!fat_ent_update_ptr(sb, fatent, offset, blocknr)) {
 		fatent_brelse(fatent);
 		// err = ops->ent_bread(sb, fatent, offset, blocknr);
@@ -302,6 +313,9 @@ int fat_ent_read(struct inode *inode, struct fat_entry *fatent, int entry)
 }
 
 /* FIXME: We can write the blocks as more big chunk. */
+/*
+* Info: update the entry in all the possible fat tables
+*/
 static int fat_mirror_bhs(struct super_block *sb, struct buffer_head **bhs,
 			  int nr_bhs)
 {
@@ -350,6 +364,14 @@ int fat_ent_write(struct inode *inode, struct fat_entry *fatent,
 	return fat_mirror_bhs(sb, fatent->bhs, fatent->nr_bhs);
 }
 
+/*
+* Desc: increase the entry inside fatent and increase the pointer inside
+*         fatent if the pionter will still be in the same block
+*         otherwise return 0. Anyway fatent->entry gets bigger.
+*
+* Info: It's getting the next physically adjecent entry in the fat table.
+* Ret: 1/0 succeed or fail
+*/
 static inline int fat_ent_next(struct fat_sb_info *sbi,
 			       struct fat_entry *fatent)
 {
@@ -361,6 +383,9 @@ static inline int fat_ent_next(struct fat_sb_info *sbi,
 	return 0;
 }
 
+/*
+* Desc: update the buffer in fatent according to the entry inside it
+*/
 static inline int fat_ent_read_block(struct super_block *sb,
 				     struct fat_entry *fatent)
 {
@@ -375,6 +400,10 @@ static inline int fat_ent_read_block(struct super_block *sb,
 	return fat_ent_bread(sb, fatent, offset, blocknr);
 }
 
+/*
+* Desc: check all the buffer_heads inside fatent
+*           put those which are not already in the array bhs into the array bhs
+*/
 static void fat_collect_bhs(struct buffer_head **bhs, int *nr_bhs,
 			    struct fat_entry *fatent)
 {
@@ -442,7 +471,7 @@ int fat_alloc_clusters(struct inode *inode, int *cluster, int nr_cluster)
 				sbi->prev_free = entry;
 				if (sbi->free_clusters != -1)
 					sbi->free_clusters--;
-				sb->s_dirt = 1;
+				sb->s_dirt = 1;  // free_clusters has decreased
 
 				cluster[idx_clus] = entry;
 				idx_clus++;
