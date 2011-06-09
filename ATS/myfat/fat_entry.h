@@ -9,6 +9,7 @@
 
 #include <linux/fs.h>
 
+// fat_entry describes the entry in the fat table.
 struct fat_entry {
 	int entry;  // no. of entry represented by this fat_entry
 	union {

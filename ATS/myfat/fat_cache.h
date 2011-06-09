@@ -28,7 +28,7 @@ extern int fat_get_cluster(struct inode *, int cluster, int *fclus, int *dclus);
 */
 static inline sector_t fat_clus_to_blknr(struct fat_sb_info *sbi, int clus)
 {
-        printk (KERN_INFO "myfat: fat_clus_to_blknr\n");
+        // printk (KERN_INFO "myfat: fat_clus_to_blknr\n");
 	return ((sector_t)clus - FAT_START_ENT) * sbi->sec_per_clus
 		+ sbi->data_start;
 }

@@ -48,8 +48,15 @@ static inline loff_t fat_make_i_pos(struct super_block *sb,
 // todo into ATS
 /*
 * Desc: make *de to point to the entry desiganated by *pos, then increase *pos
+* Para:
+*    pos: inout    the pos of the entry inside the "directory" file
+*                       the function also increases pos by the size of msdos_dir_entry
+*    bh: out    pointer to pointer to the buffer
+*    de: out    the pointer to the dir entry in the buffer
+* Atten: This function will not enlarge the dir file.
 *
-*
+* Ret:
+*    -1: error
 */
 static int fat__get_entry(struct inode *dir, loff_t *pos,
 			  struct buffer_head **bh, struct msdos_dir_entry **de)
@@ -101,6 +108,10 @@ next:
 *   After the function call, the *pos is always one entry ahead of
 *   *de. We can keep calling this function to enumerate all the
 *   entries in the file.
+* Return:
+*   0: Succeed
+*   -1: Wrong
+* Atten: This function will not enlarge the dir file.
 */
 static inline int fat_get_entry(struct inode *dir, loff_t *pos,
 				struct buffer_head **bh,
@@ -972,13 +983,26 @@ error:
 	return err;
 }
 
+/*
+* Desc: add certain amount of entries (corresponding to one file) to the dir file 
+* (maybe just one entry or multiple entries. It depends on the length of
+* the file name (long name).
+*
+* Para:
+*   fat_slot_info: out    
+*/
 int fat_add_entries(struct inode *dir, void *slots, int nr_slots,
 		    struct fat_slot_info *sinfo)
 {
 	struct super_block *sb = dir->i_sb;
 	struct fat_sb_info *sbi = MSDOS_SB(sb);
 	struct buffer_head *bh, *prev, *bhs[3]; /* 32*slots (672bytes) */
+        // The longest file name may need 32 slots each of which has 21 bytes.
+        // The smallest block may be just 512 byte. Therefore it's possbile
+        // that the entries for one file may span over 3 blocks.
+        
 	struct msdos_dir_entry *de = 0;
+        // free_slots: no of free slots found in the directory file
 	int err, free_slots, i, nr_bhs;
 	loff_t pos, i_pos;
 
@@ -1059,7 +1083,7 @@ found:
 			goto error_remove;
 	}
 
-	if (nr_slots) {
+	if (nr_slots) {  // still need some new slots
 		int cluster, nr_cluster;
 
 		/*

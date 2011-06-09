@@ -136,6 +136,7 @@ static int msdos_add_entry(struct inode *dir, const unsigned char *name,
 	de.starthi = cpu_to_le16(cluster >> 16);
 	de.size = 0;
 
+       // Update the dir file
 	err = fat_add_entries(dir, &de, 1, sinfo);
 	if (err)
 		return err;
@@ -147,6 +148,8 @@ static int msdos_add_entry(struct inode *dir, const unsigned char *name,
 	// else
 	// 	mark_inode_dirty(dir);
         // Zhiqiang: my way is always sync
+        // update the inode for the dir (update the dir file of the father
+        // of the this dir)
 	(void)fat_sync_inode(dir);
 
 	return 0;

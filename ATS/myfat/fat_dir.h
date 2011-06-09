@@ -3,7 +3,11 @@
 
 #include <linux/fs.h>
 
-
+// fat_slot_info describes the information about the dir entry in a directory file.
+// i_pos: 
+// slot_off:
+// nr_slots: for vfat, one file name may need multiple slots
+// bh: the buffer_head which contains the buffer for this die entry
 struct fat_slot_info {
 	loff_t i_pos;		/* on-disk position of directory entry */
 	loff_t slot_off;	/* offset for slot or de start */

@@ -447,6 +447,11 @@ static inline loff_t fat_i_pos_read(struct fat_sb_info *sbi,
 	return i_pos;
 }
 
+/*
+* Desc: write inode info to its corresponding dir entry on the disk.
+* Atten: I think the lock of the directory in which the inode resides should
+* be grabbed before calling this function.
+*/
 static int fat_write_inode(struct inode *inode, int wait)
 {
 	struct super_block *sb = inode->i_sb;
