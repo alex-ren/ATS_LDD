@@ -3,10 +3,17 @@
 
 #include <linux/fs.h>
 
+// by Zhiqiang Ren
+// One file name may correspond to multiple slots if the name is long [for vfat].
+// For msdos, each file name only needs one slot [or entry].
+
 // fat_slot_info describes the information about the dir entry in a directory file.
-// i_pos: 
-// slot_off:
-// nr_slots: for vfat, one file name may need multiple slots
+// i_pos: The address [in byte] of the slot in the data region of the volume
+// slot_off: offset of this slot [entry] inside the dir file
+// nr_slots: suppose this slot is the first slot for the filename, then nr_slots is 0 + 1 = 1
+//     for msdos, each filename only has one slot, so the nr_slots is always 1.
+// msdos_dir_entry: entry is the unit on physical volume. It corresponds to a slot.
+//    msdos_dir_entry points to certain memory which is inside the buffer pointed by bh.
 // bh: the buffer_head which contains the buffer for this die entry
 struct fat_slot_info {
 	loff_t i_pos;		/* on-disk position of directory entry */

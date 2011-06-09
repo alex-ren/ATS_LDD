@@ -303,7 +303,8 @@ static int fat_bmap_cluster(struct inode *inode, int cluster)
 *   sector: no. of sector (inside a file)
 *   Out:
 *   phys: no. of cluster in volume
-*   mapped_blocks: unknown
+*   mapped_blocks: hard to explain, see code, how many continuous
+*   blocks are valid to read on the hard disk
 *   create: unknown
 *
 */

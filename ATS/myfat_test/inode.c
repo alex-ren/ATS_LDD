@@ -106,6 +106,11 @@ static inline int __fat_get_block(struct inode *inode, sector_t iblock,
 	return 0;
 }
 
+
+/*
+* Desc: get
+*
+*/
 static int fat_get_block(struct inode *inode, sector_t iblock,
 			 struct buffer_head *bh_result, int create)
 {
