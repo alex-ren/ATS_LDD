@@ -41,4 +41,22 @@
   into ATS code gradually. Basically I should freeze the directory now.
 
 
+-- routine way to do the test
+   1. We use two machines, one for development (dev) and one for test (test).
+      Create a file for loopback on the test machine and then create the virtual hard disk.
+
+   2. shell_script/loaddev.sh
+
+   3. shell_script/starttest.sh
+
+   4. less /var/log/messages (shift + f)
+
+   * hint *
+   On test machine, we'd better "su" first before doing the test. This can save us from
+   lots of trouble concerning permission. If we cannot "su" (e.g. on Ubuntu system), we
+   can also use "sudo". We can also use "sudo" to execute shell by the following
+   ======================
+   sudo sh -c xxx.sh
+   sudo sh -c "cat > aaa.txt"
+   ======================
 
