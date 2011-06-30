@@ -1,0 +1,431 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <title></title>
+  <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+  <style type="text/css">
+    .atsyntax {color:#E80000;background-color:#E0E0E0}
+    .atsyntax span.comment {color:#787878;font-style:italic}
+    .atsyntax span.extern  {color:#A52A2A}
+    .atsyntax span.keyword {color:#000000;font-weight:bold}
+    .atsyntax span.neuexp  {color:#800080}
+    .atsyntax span.staexp  {color:#0000FF}
+    .atsyntax span.dynexp  {color:#E80000}
+    .atsyntax span.prfexp  {color:#009000}
+    .atsyntax span.stacstdec  {text-decoration:none}
+    .atsyntax span.stacstuse  {color:#0000CF;text-decoration:underline}
+    .atsyntax span.dyncstdec  {text-decoration:none}
+    .atsyntax span.dyncstimp  {color:#B80000;text-decoration:underline}
+    .atsyntax span.dyncstuse  {color:#B80000;text-decoration:underline}
+    body {color:#E80000;background-color:#E0E0E0}
+  </style>
+</head>
+<body>
+<pre class="atsyntax">
+<span class="comment">//
+</span><span class="comment">// Author: Zhiqiang Ren (aren AT cs DOT bu DOT edu)
+</span><span class="comment">// Time: April 6th., 2011
+</span><span class="comment">//
+</span><span class="comment">/* ****** ****** */</span>
+
+<span class="keyword">#define</span> <span class="neuexp">ATS_DYNLOADFLAG 0</span>
+
+
+<span class="comment">(* This must be staloaded first *)</span>
+<span class="keyword">staload</span> <span class="staexp">"myheader.sats"</span>
+
+<span class="comment">(* ***** ***** ***** *)</span>
+
+<span class="keyword">staload</span> <span class="staexp">"contrib/linux/linux/SATS/kernel.sats"</span>  <span class="comment">// for printk
+</span>
+<span class="comment">(* ***** ***** ***** *)</span>
+
+<span class="keyword">staload</span> <span class="staexp">"ats_fat_file.sats"</span>
+<span class="keyword">staload</span> <span class="staexp">"ats_fs_types.sats"</span>
+<span class="keyword">staload</span> <span class="staexp">"ats_fat_cache.sats"</span>
+
+<span class="comment">(* ***** ***** ***** *)</span>
+<span class="keyword">staload</span> <span class="staexp">UN <span class="keyword">=</span> "prelude/SATS/unsafe.sats"</span>
+<span class="keyword">macdef</span> <span class="neuexp">viewout_decode <span class="keyword">=</span> $UN<span class="keyword">.</span>viewout_decode</span>
+
+<span class="comment">(* ***** ***** ***** *)</span>
+
+
+<span class="comment">(* ***** ***** ***** *)</span>
+
+<span class="keyword">staload</span>
+<span class="staexp">UACC <span class="keyword">=</span> "contrib/linux/asm/SATS/uaccess.sats"</span>
+<span class="keyword">macdef</span> <span class="neuexp">clear_user <span class="keyword">=</span> $UACC<span class="keyword">.</span>clear_user</span>
+<span class="keyword">macdef</span> <span class="neuexp">copy_to_user <span class="keyword">=</span> $UACC<span class="keyword">.</span>copy_to_user</span>
+<span class="keyword">macdef</span> <span class="neuexp">copy_from_user <span class="keyword">=</span> $UACC<span class="keyword">.</span>copy_from_user</span>
+
+<span class="comment">(* ***** ***** ***** *)</span>
+
+<span class="keyword">implement</span> fat_sync_read
+ <span class="staexp"><span class="keyword">{</span>l<span class="keyword">}</span></span> <span class="staexp"><span class="keyword">{</span>n<span class="keyword">}</span></span> <span class="staexp"><span class="keyword">{</span>ofs<span class="keyword">}</span></span> <span class="keyword">(</span><span class="prfexp">pfbuf</span> <span class="keyword">|</span> file <span class="keyword">,</span> p <span class="keyword">,</span> n <span class="keyword">,</span> pos<span class="keyword">)</span> <span class="keyword">=</span> <span class="keyword">let</span>
+
+  <span class="keyword">val</span> <span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> printk <span class="keyword">(</span>KERN_INFO "atsfs: fat_sync_read 0001\n"<span class="keyword">,</span> <span class="keyword">@(</span><span class="keyword">)</span><span class="keyword">)</span>
+
+  <span class="keyword">val</span> <span class="keyword">(</span><span class="prfexp">v_inode</span> <span class="keyword">|</span> pinode<span class="keyword">)</span> <span class="keyword">=</span> file2inode_acquire <span class="keyword">(</span>file<span class="keyword">)</span>
+  <span class="keyword">stavar</span> <span class="staexp">filesz<span class="keyword">:</span> int</span>
+  <span class="keyword">val</span> filesz <span class="keyword">=</span> <span class="keyword">(</span>pinode<span class="keyword">-&gt;</span>i_size<span class="keyword">)</span><span class="keyword">:</span> <span class="staexp">loff_t filesz</span>
+<span class="keyword">in</span>
+  <span class="keyword">if</span> <span class="keyword">(</span>pos &gt;= filesz<span class="keyword">)</span> <span class="keyword">=</span> true <span class="keyword">then</span> <span class="keyword">let</span>
+    <span class="keyword">val</span> <span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> file2inode_release <span class="keyword">(</span><span class="prfexp">v_inode</span> <span class="keyword">|</span> pinode<span class="keyword">)</span>
+  <span class="keyword">in</span>
+    <span class="comment">// ssize1_of_int1 (~int_of (EIO))
+</span>    <span class="comment">// return 0 is O.K. No need to return error.
+</span>    ssize1_of_int1 <span class="keyword">(</span>0<span class="keyword">)</span>
+  <span class="keyword">end</span> <span class="keyword">else</span> <span class="keyword">let</span>
+    <span class="keyword">stavar</span> <span class="staexp">len<span class="keyword">:</span> int</span>
+    <span class="keyword">val</span> len <span class="keyword">=</span> <span class="keyword">(</span>filesz - pos<span class="keyword">)</span><span class="keyword">:</span> <span class="staexp">loff_t len</span>
+    <span class="keyword">val</span> len <span class="keyword">=</span> min <span class="keyword">(</span>size1_of_loff1 <span class="keyword">(</span>len<span class="keyword">)</span><span class="keyword">,</span> n<span class="keyword">)</span>
+
+    <span class="comment">(* get all the views needed *)</span>
+    <span class="keyword">val</span> <span class="keyword">(</span><span class="prfexp">vo_inode</span> <span class="keyword">|</span> pinode'<span class="keyword">)</span> <span class="keyword">=</span> inode_own2inode <span class="keyword">(</span><span class="keyword">!</span>pinode<span class="keyword">)</span>
+    <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span>pf_inode<span class="keyword">,</span> fpf_inode<span class="keyword">)</span> <span class="keyword">=</span> viewout_decode <span class="keyword">(</span>vo_inode<span class="keyword">)</span></span>
+
+    <span class="keyword">val</span> <span class="keyword">(</span><span class="prfexp">vo_fnode</span> <span class="keyword">|</span> pfnode<span class="keyword">)</span> <span class="keyword">=</span> inode2fat_inode_own <span class="keyword">(</span><span class="keyword">!</span>pinode<span class="keyword">)</span>
+    <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span>pf_fnode<span class="keyword">,</span> fpf_fnode<span class="keyword">)</span> <span class="keyword">=</span> viewout_decode <span class="keyword">(</span>vo_fnode<span class="keyword">)</span></span>
+
+    <span class="keyword">val</span> <span class="keyword">(</span><span class="prfexp">vo_sb</span> <span class="keyword">|</span> psb<span class="keyword">)</span> <span class="keyword">=</span> inode2sb <span class="keyword">(</span><span class="keyword">!</span>pinode<span class="keyword">)</span>
+    <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span>pf_sb<span class="keyword">,</span> fpf_sb<span class="keyword">)</span> <span class="keyword">=</span> viewout_decode <span class="keyword">(</span>vo_sb<span class="keyword">)</span></span>
+
+    <span class="keyword">val</span> <span class="keyword">(</span><span class="prfexp">vo_sbi</span> <span class="keyword">|</span> psbi<span class="keyword">)</span> <span class="keyword">=</span> sb2fat_sb <span class="keyword">(</span><span class="keyword">!</span>psb<span class="keyword">)</span>
+    <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span>pf_sbi<span class="keyword">,</span> fpf_sbi<span class="keyword">)</span> <span class="keyword">=</span> viewout_decode <span class="keyword">(</span>vo_sbi<span class="keyword">)</span></span>
+    <span class="comment">// end of [getting view]
+</span>
+    <span class="keyword">val</span> clssz <span class="keyword">=</span> get_clustersize <span class="keyword">(</span><span class="keyword">!</span>psbi<span class="keyword">)</span>
+    <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> clssz_pos <span class="keyword">(</span><span class="keyword">)</span></span>
+
+    <span class="keyword">var</span> cls_ofs<span class="keyword">:</span> <span class="staexp">loff_t</span>
+    <span class="keyword">var</span> cls_num<span class="keyword">:</span> <span class="staexp">loff_t</span>
+    <span class="keyword">val</span> <span class="keyword">(</span><span class="prfexp">xx</span> <span class="keyword">|</span> yy<span class="keyword">)</span> <span class="keyword">=</span> loff_ldiv_loff <span class="keyword">(</span>pos<span class="keyword">,</span> loff1_of_size1 <span class="keyword">(</span>clssz<span class="keyword">)</span><span class="keyword">,</span> cls_num<span class="keyword">,</span> cls_ofs<span class="keyword">)</span>
+
+    <span class="keyword">val</span> cls_first <span class="keyword">=</span> get_first_cluster <span class="keyword">(</span><span class="keyword">!</span>pinode'<span class="keyword">)</span>
+    <span class="comment">// val () = BUG_ON (cls_first &lt;&gt; FAT_ENT_FREE)
+</span>    
+    <span class="keyword">var</span> nth_cls<span class="keyword">:</span> <span class="staexp">int</span>
+    <span class="keyword">val</span> ncls <span class="keyword">=</span> get_nth_cluster <span class="keyword">(</span><span class="keyword">!</span>psb<span class="keyword">,</span> cls_first<span class="keyword">,</span> int1_of_loff1 <span class="keyword">(</span>cls_num<span class="keyword">)</span><span class="keyword">,</span> nth_cls<span class="keyword">)</span>
+  <span class="keyword">in</span>
+    <span class="keyword">if</span> loff1_of_int1 <span class="keyword">(</span>nth_cls<span class="keyword">)</span> <span class="keyword">&lt;</span> cls_num <span class="keyword">then</span> <span class="keyword">let</span>
+      <span class="comment">(* return all the views *)</span>
+      <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> fpf_fnode <span class="keyword">(</span>pf_fnode<span class="keyword">)</span></span>
+      <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> fpf_sb <span class="keyword">(</span>pf_sb<span class="keyword">)</span></span>
+      <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> fpf_sbi <span class="keyword">(</span>pf_sbi<span class="keyword">)</span></span>
+      <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> fpf_inode <span class="keyword">(</span>pf_inode<span class="keyword">)</span></span>
+      <span class="comment">// end of [return views]
+</span>  
+      <span class="keyword">val</span> <span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> file2inode_release <span class="keyword">(</span><span class="prfexp">v_inode</span> <span class="keyword">|</span> pinode<span class="keyword">)</span>
+    <span class="keyword">in</span>
+      ssize1_of_int1 <span class="keyword">(</span><span class="keyword">~</span>int1_of_errno1 <span class="keyword">(</span>EIO<span class="keyword">)</span><span class="keyword">)</span>
+    <span class="keyword">end</span> <span class="keyword">else</span> <span class="keyword">let</span>
+      <span class="keyword">var</span> accu <span class="keyword">=</span> 0<span class="keyword">:</span> <span class="staexp">size_t 0</span>
+      <span class="keyword">var</span> err <span class="keyword">=</span> errno1_of_int1 0
+      <span class="keyword">val</span> <span class="keyword">(</span><span class="prfexp">pf_ret</span> <span class="keyword">|</span> ret<span class="keyword">)</span> <span class="keyword">=</span> copy_clusters_impl <span class="keyword">(</span><span class="prfexp">v_inode</span><span class="keyword">,</span> <span class="prfexp">pfbuf</span> <span class="keyword">|</span>
+        <span class="keyword">!</span>psb<span class="keyword">,</span> p<span class="keyword">,</span> cls_ofs<span class="keyword">,</span> len<span class="keyword">,</span> ncls<span class="keyword">,</span> clssz<span class="keyword">,</span> accu<span class="keyword">,</span> err<span class="keyword">)</span> 
+  
+      <span class="keyword">val</span> <span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> pos := pos + loff1_of_size1 <span class="keyword">(</span>ret<span class="keyword">)</span>
+  
+      <span class="comment">(* return all the views *)</span>
+      <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> fpf_fnode <span class="keyword">(</span>pf_fnode<span class="keyword">)</span></span>
+      <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> fpf_sb <span class="keyword">(</span>pf_sb<span class="keyword">)</span></span>
+      <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> fpf_sbi <span class="keyword">(</span>pf_sbi<span class="keyword">)</span></span>
+      <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> fpf_inode <span class="keyword">(</span>pf_inode<span class="keyword">)</span></span>
+      <span class="comment">// end of [return views]
+</span>  
+      <span class="keyword">val</span> <span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> file2inode_release <span class="keyword">(</span><span class="prfexp">v_inode</span> <span class="keyword">|</span> pinode<span class="keyword">)</span>
+    <span class="keyword">in</span>
+      <span class="keyword">if</span> ret <span class="keyword">&gt;</span> 0 <span class="keyword">then</span> ssize1_of_size1 <span class="keyword">(</span>ret<span class="keyword">)</span>
+      <span class="keyword">else</span> ssize1_of_int1 <span class="keyword">(</span><span class="keyword">~</span>int1_of_errno1 <span class="keyword">(</span>err<span class="keyword">)</span><span class="keyword">)</span>
+    <span class="keyword">end</span>
+  <span class="keyword">end</span>
+<span class="keyword">end</span>
+
+<span class="comment">// fun copy_clusters_impl
+</span><span class="comment">//   {pinode:addr}
+</span><span class="comment">//   {pbuf: addr} 
+</span><span class="comment">//   {n: nat}
+</span><span class="comment">//   {ofs: nat | ofs &lt; clssz}   // offset in current cluster
+</span><span class="comment">//   {len: pos | len &lt;= n}  // total length to be copied
+</span><span class="comment">//   {accu: nat}
+</span><span class="comment">//   {e: nat} (
+</span><span class="comment">//   pf_inode_r: !inode_own @ pinode,
+</span><span class="comment">//   pf_buf: !bytes(n) @ pbuf |
+</span><span class="comment">//   sb: &amp;super_block,
+</span><span class="comment">//   pbuf: $Basics.uptr pbuf,
+</span><span class="comment">//   ofs: loff_t (ofs),
+</span><span class="comment">//   len: size_t (len),
+</span><span class="comment">//   ncls: ncluster_norm,
+</span><span class="comment">//   clssz: size_t (clssz),
+</span><span class="comment">//   accu: size_t (accu),
+</span><span class="comment">//   err: &amp;(errno_t e) &gt;&gt; errno_t  // last error
+</span><span class="comment">//   ): #[accu': int | accu' &gt;= accu; accu' - accu &lt;= len] 
+</span><span class="comment">//   (error_ret (e, accu' - accu) | size_t (accu'))
+</span><span class="keyword">implement</span> copy_clusters_impl
+  <span class="staexp"><span class="keyword">{</span>pinode<span class="keyword">}</span></span>
+  <span class="staexp"><span class="keyword">{</span>pbuf<span class="keyword">}</span></span> <span class="staexp"><span class="keyword">{</span>n<span class="keyword">}</span></span>
+  <span class="staexp"><span class="keyword">{</span>ofs<span class="keyword">}</span></span> <span class="staexp"><span class="keyword">{</span>len<span class="keyword">}</span></span> 
+  <span class="staexp"><span class="keyword">{</span>accu<span class="keyword">}</span></span> <span class="staexp"><span class="keyword">{</span>e<span class="keyword">}</span></span> <span class="keyword">(</span>
+  <span class="prfexp">pf_inode_r</span><span class="keyword">,</span> <span class="prfexp">pf_buf</span> <span class="keyword">|</span> sb<span class="keyword">,</span> pbuf<span class="keyword">,</span> ofs<span class="keyword">,</span> len<span class="keyword">,</span> ncls<span class="keyword">,</span> clssz<span class="keyword">,</span> accu<span class="keyword">,</span> err<span class="keyword">)</span> <span class="keyword">=</span>
+  <span class="keyword">if</span> int1_of_errno1 <span class="keyword">(</span>err<span class="keyword">)</span> &lt;&gt; 0 <span class="keyword">then</span> <span class="keyword">(</span><span class="prfexp">error_ret_pos <span class="keyword">(</span><span class="keyword">)</span></span> <span class="keyword">|</span> accu<span class="keyword">)</span>
+  <span class="keyword">else</span> <span class="keyword">let</span>
+    <span class="keyword">val</span> len1 <span class="keyword">=</span> size1_of_loff1 <span class="keyword">(</span>clssz - ofs<span class="keyword">)</span>
+    <span class="keyword">stavar</span> <span class="staexp">len1<span class="keyword">:</span> int</span>
+    <span class="keyword">val</span> len1 <span class="keyword">=</span> min <span class="keyword">(</span>len<span class="keyword">,</span> len1<span class="keyword">)</span><span class="keyword">:</span> <span class="staexp">size_t len1</span>
+    <span class="keyword">val</span> ret <span class="keyword">=</span> copy_cluster_impl <span class="keyword">(</span><span class="prfexp">pf_inode_r</span><span class="keyword">,</span> <span class="prfexp">pf_buf</span> <span class="keyword">|</span> sb<span class="keyword">,</span> pbuf<span class="keyword">,</span> ofs<span class="keyword">,</span> len1<span class="keyword">,</span> ncls<span class="keyword">,</span> err<span class="keyword">)</span>
+    <span class="keyword">val</span> accu <span class="keyword">=</span> accu + ret
+  <span class="keyword">in</span>
+    <span class="keyword">if</span> int1_of_errno1 <span class="keyword">(</span>err<span class="keyword">)</span> &lt;&gt; 0 <span class="keyword">then</span> <span class="keyword">(</span><span class="prfexp">error_ret_any</span> <span class="keyword">|</span> accu<span class="keyword">)</span>
+    <span class="keyword">else</span> <span class="keyword">let</span>
+      <span class="keyword">var</span> nxt_cls<span class="keyword">:</span> <span class="staexp">ncluster?</span>
+      <span class="keyword">val</span> ret_err <span class="keyword">=</span> get_next_cluster <span class="keyword">(</span>sb<span class="keyword">,</span> ncls<span class="keyword">,</span> nxt_cls<span class="keyword">)</span>
+    <span class="keyword">in</span>
+      <span class="keyword">if</span> int1_of_errno1 <span class="keyword">(</span>ret_err<span class="keyword">)</span> &lt;&gt; 0 <span class="keyword">then</span> <span class="keyword">let</span>
+        <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> opt_unnone <span class="staexp"><span class="keyword">{</span>ncluster_notbad<span class="keyword">}</span></span> <span class="keyword">(</span>nxt_cls<span class="keyword">)</span></span>
+      <span class="keyword">in</span>
+        <span class="keyword">(</span><span class="prfexp">error_ret_any</span> <span class="keyword">|</span> accu<span class="keyword">)</span> 
+      <span class="keyword">end</span> <span class="keyword">else</span> <span class="keyword">let</span>
+        <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> opt_unsome <span class="staexp"><span class="keyword">{</span>ncluster_notbad<span class="keyword">}</span></span> <span class="keyword">(</span>nxt_cls<span class="keyword">)</span></span>
+      <span class="keyword">in</span>
+        <span class="keyword">if</span> nxt_cls <span class="keyword">=</span> FAT_ENT_FREE || nxt_cls <span class="keyword">=</span> FAT_ENT_EOF
+        <span class="keyword">then</span> <span class="keyword">let</span>
+          <span class="keyword">val</span> <span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> err := EIO
+        <span class="keyword">in</span>
+          <span class="keyword">(</span><span class="prfexp">error_ret_any</span> <span class="keyword">|</span> accu<span class="keyword">)</span>
+        <span class="keyword">end</span>
+        <span class="keyword">else</span> <span class="keyword">if</span> len - len1 <span class="keyword">&gt;</span> 0 <span class="keyword">then</span> <span class="keyword">let</span> 
+          <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span>pf_buf1<span class="keyword">,</span> pf_buf2<span class="keyword">)</span> <span class="keyword">=</span> bytes_v_split <span class="staexp"><span class="keyword">{</span>n<span class="keyword">}</span></span> <span class="staexp"><span class="keyword">{</span>len1<span class="keyword">}</span></span> <span class="keyword">(</span>pf_buf<span class="keyword">)</span></span>
+          <span class="keyword">val</span> <span class="keyword">(</span><span class="prfexp">pf_ret</span> <span class="keyword">|</span> ret<span class="keyword">)</span> <span class="keyword">=</span> copy_clusters_impl <span class="keyword">(</span><span class="prfexp">pf_inode_r</span><span class="keyword">,</span> <span class="prfexp">pf_buf2</span> <span class="keyword">|</span> 
+                sb<span class="keyword">,</span> pbuf + len1<span class="keyword">,</span> loff1_of_int1 <span class="keyword">(</span>0<span class="keyword">)</span><span class="keyword">,</span> 
+                len - len1<span class="keyword">,</span> nxt_cls<span class="keyword">,</span> clssz<span class="keyword">,</span> accu<span class="keyword">,</span> err<span class="keyword">)</span>
+          <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> pf_buf := bytes_v_unsplit <span class="keyword">(</span>pf_buf1<span class="keyword">,</span> pf_buf2<span class="keyword">)</span></span>
+        <span class="keyword">in</span>
+          <span class="keyword">(</span><span class="prfexp">error_ret_any</span> <span class="keyword">|</span> ret<span class="keyword">)</span>
+        <span class="keyword">end</span> <span class="keyword">else</span>
+          <span class="keyword">(</span><span class="prfexp">error_ret_any</span> <span class="keyword">|</span> accu<span class="keyword">)</span>
+      <span class="keyword">end</span>
+    <span class="keyword">end</span>
+  <span class="keyword">end</span>
+
+<span class="comment">// fun copy_cluster_impl
+</span><span class="comment">//   {pinode:addr}
+</span><span class="comment">//   {pbuf: addr} 
+</span><span class="comment">//   {n: nat}
+</span><span class="comment">//   {ofs: nat}   // offset in cluster
+</span><span class="comment">//   {len: pos | len &lt;= n; ofs + len &lt;= $AFT.clssz}
+</span><span class="comment">//   {e: nat} (
+</span><span class="comment">//   pf_inode_r: !($AFT.inode_own) @ pinode,
+</span><span class="comment">//   pf_buf: !bytes(n) @ pbuf |
+</span><span class="comment">//   sb: &amp;($AFT.super_block),
+</span><span class="comment">//   pbuf: $Basics.uptr pbuf,
+</span><span class="comment">//   ofs: $AFT.loff_t (ofs),
+</span><span class="comment">//   len: size_t (len),
+</span><span class="comment">//   ncls: $AFT.ncluster_valid,
+</span><span class="comment">//   err: &amp;($AFT.errno_t e) &gt;&gt; $AFT.errno_t pe
+</span><span class="comment">//   ): #[len1:nat | len1 &lt;= len] #[pe: nat] size_t len1
+</span><span class="keyword">implement</span> copy_cluster_impl
+  <span class="staexp"><span class="keyword">{</span>pinode<span class="keyword">}</span></span>
+  <span class="staexp"><span class="keyword">{</span>pbuf<span class="keyword">}</span></span> 
+  <span class="staexp"><span class="keyword">{</span>n<span class="keyword">}</span></span>
+  <span class="staexp"><span class="keyword">{</span>ofs<span class="keyword">}</span></span>   <span class="comment">// offset in cluster
+</span>  <span class="staexp"><span class="keyword">{</span>len<span class="keyword">}</span></span> 
+  <span class="staexp"><span class="keyword">{</span>e<span class="keyword">}</span></span> <span class="keyword">(</span>
+  <span class="prfexp">pf_inode_r</span><span class="keyword">,</span>
+  <span class="prfexp">pf_buf</span> <span class="keyword">|</span>
+  sb<span class="keyword">,</span>
+  pbuf<span class="keyword">,</span>
+  ofs<span class="keyword">,</span>
+  len<span class="keyword">,</span>
+  ncls<span class="keyword">,</span>
+  err
+  <span class="keyword">)</span> <span class="keyword">=</span>
+  <span class="keyword">if</span> int1_of_errno1 <span class="keyword">(</span>err<span class="keyword">)</span> &lt;&gt; 0 <span class="keyword">then</span> size1_of_int1 0
+  <span class="keyword">else</span> <span class="keyword">let</span>
+    <span class="keyword">val</span> <span class="keyword">(</span><span class="prfexp">vo_sbi</span> <span class="keyword">|</span> psbi<span class="keyword">)</span> <span class="keyword">=</span> sb2fat_sb <span class="keyword">(</span>sb<span class="keyword">)</span>
+    <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span>pf_sbi<span class="keyword">,</span> fpf_sbi<span class="keyword">)</span> <span class="keyword">=</span> viewout_decode <span class="keyword">(</span>vo_sbi<span class="keyword">)</span></span>
+    <span class="keyword">val</span> pnblk <span class="keyword">=</span> ncluster2block <span class="keyword">(</span><span class="keyword">!</span>psbi<span class="keyword">,</span> ncls<span class="keyword">)</span>
+    <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> fpf_sbi <span class="keyword">(</span>pf_sbi<span class="keyword">)</span></span>
+
+    <span class="keyword">val</span> blksz <span class="keyword">=</span> get_blocksize <span class="keyword">(</span>sb<span class="keyword">)</span>
+    <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> blksz_pos <span class="keyword">(</span><span class="keyword">)</span></span>
+
+    <span class="keyword">var</span> blk_ofs<span class="keyword">:</span> <span class="staexp">loff_t</span>
+    <span class="keyword">var</span> blk_num<span class="keyword">:</span> <span class="staexp">loff_t</span>
+    <span class="keyword">val</span> <span class="keyword">(</span><span class="prfexp">_</span> <span class="keyword">|</span> _<span class="keyword">)</span> <span class="keyword">=</span> loff_ldiv_loff <span class="keyword">(</span>ofs<span class="keyword">,</span> loff1_of_size1 <span class="keyword">(</span>blksz<span class="keyword">)</span><span class="keyword">,</span> blk_num<span class="keyword">,</span> blk_ofs<span class="keyword">)</span>
+
+    <span class="keyword">val</span> pnblk <span class="keyword">=</span> pnblk + blk_num
+
+    <span class="keyword">val</span> retsz <span class="keyword">=</span> copy_phyblocks_impl <span class="keyword">(</span>
+      <span class="prfexp">pf_inode_r</span><span class="keyword">,</span> <span class="prfexp">pf_buf</span> <span class="keyword">|</span> sb<span class="keyword">,</span> pbuf<span class="keyword">,</span> blk_ofs<span class="keyword">,</span> len<span class="keyword">,</span> pnblk<span class="keyword">,</span> blksz<span class="keyword">,</span> 0<span class="keyword">,</span> err<span class="keyword">)</span>
+  <span class="keyword">in</span>
+    retsz
+  <span class="keyword">end</span>
+
+<span class="comment">// fun copy_phyblocks_impl
+</span><span class="comment">//   {pinode:addr}
+</span><span class="comment">//   {pbuf: addr} 
+</span><span class="comment">//   {n: nat}
+</span><span class="comment">//   {ofs: nat | ofs &lt; $AFT.blksz}   // offset in current block
+</span><span class="comment">//   {len: pos | len &lt;= n}  // total length to be copied
+</span><span class="comment">//   {accu: nat} 
+</span><span class="comment">//   {e: nat} (
+</span><span class="comment">//   pf_inode_r: !($AFT.inode_own) @ pinode,
+</span><span class="comment">//   pf_buf: !bytes(n) @ pbuf |
+</span><span class="comment">//   sb: &amp;($AFT.super_block),
+</span><span class="comment">//   pbuf: $Basics.uptr pbuf,
+</span><span class="comment">//   ofs: $AFT.loff_t (ofs),
+</span><span class="comment">//   len: size_t (len),
+</span><span class="comment">//   pnblk: $AFT.nblock,  // starting number of physical block
+</span><span class="comment">//   blksz: size_t ($AFT.blksz),
+</span><span class="comment">//   accu: size_t (accu),
+</span><span class="comment">//   err: &amp;($AFT.errno_t) e &gt;&gt; ($AFT.errno_t pe)  // last error
+</span><span class="comment">//   ): #[accu': int | accu' &gt;= accu; accu' - accu &lt;= len] #[pe: nat] 
+</span><span class="comment">//   size_t (accu')
+</span><span class="keyword">implement</span> copy_phyblocks_impl
+  <span class="staexp"><span class="keyword">{</span>pinode<span class="keyword">}</span></span>
+  <span class="staexp"><span class="keyword">{</span>pbuf<span class="keyword">}</span></span> 
+  <span class="staexp"><span class="keyword">{</span>n<span class="keyword">}</span></span>
+  <span class="staexp"><span class="keyword">{</span>ofs<span class="keyword">}</span></span>   <span class="comment">// offset in current block
+</span>  <span class="staexp"><span class="keyword">{</span>len<span class="keyword">}</span></span>  <span class="comment">// total length to be copied
+</span>  <span class="staexp"><span class="keyword">{</span>accu<span class="keyword">}</span></span> 
+  <span class="staexp"><span class="keyword">{</span>e<span class="keyword">}</span></span> <span class="keyword">(</span>
+  <span class="prfexp">pf_inode_r</span><span class="keyword">,</span>
+  <span class="prfexp">pf_buf</span> <span class="keyword">|</span>
+  sb<span class="keyword">,</span>
+  pbuf<span class="keyword">,</span>
+  ofs<span class="keyword">,</span>
+  len<span class="keyword">,</span>
+  pnblk<span class="keyword">,</span>  <span class="comment">// starting number of physical block
+</span>  blksz<span class="keyword">,</span>
+  accu<span class="keyword">,</span>
+  err  <span class="comment">// last error
+</span>  <span class="keyword">)</span> <span class="keyword">=</span>
+  <span class="keyword">if</span> int1_of_errno1 <span class="keyword">(</span>err<span class="keyword">)</span> &lt;&gt; 0 <span class="keyword">then</span> accu
+  <span class="keyword">else</span> <span class="keyword">let</span>
+    <span class="keyword">val</span> len1 <span class="keyword">=</span> size1_of_loff1 <span class="keyword">(</span>blksz - ofs<span class="keyword">)</span>
+    <span class="keyword">stavar</span> <span class="staexp">len1<span class="keyword">:</span> int</span>
+    <span class="keyword">val</span> len1 <span class="keyword">=</span> min <span class="keyword">(</span>len<span class="keyword">,</span> len1<span class="keyword">)</span><span class="keyword">:</span> <span class="staexp">size_t len1</span>
+    <span class="keyword">val</span> ret <span class="keyword">=</span> copy_phyblock_impl <span class="keyword">(</span><span class="prfexp">pf_inode_r</span><span class="keyword">,</span> <span class="prfexp">pf_buf</span> <span class="keyword">|</span> sb<span class="keyword">,</span> pbuf<span class="keyword">,</span> ofs<span class="keyword">,</span> len1<span class="keyword">,</span> pnblk<span class="keyword">,</span> err<span class="keyword">)</span>
+    <span class="keyword">val</span> accu <span class="keyword">=</span> accu + ret
+  <span class="keyword">in</span>
+    <span class="keyword">if</span> len <span class="keyword">&gt;</span> len1 <span class="keyword">then</span> <span class="keyword">let</span>
+      <span class="keyword">val</span> pnblk' <span class="keyword">=</span> pnblk + loff1_of_int1 <span class="keyword">(</span>1<span class="keyword">)</span>
+      <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span>pf_buf1<span class="keyword">,</span> pf_buf2<span class="keyword">)</span> <span class="keyword">=</span> bytes_v_split <span class="staexp"><span class="keyword">{</span>n<span class="keyword">}</span></span> <span class="staexp"><span class="keyword">{</span>len1<span class="keyword">}</span></span> <span class="keyword">(</span>pf_buf<span class="keyword">)</span></span>
+      <span class="keyword">val</span> ret <span class="keyword">=</span> copy_phyblocks_impl <span class="keyword">(</span><span class="prfexp">pf_inode_r</span><span class="keyword">,</span> <span class="prfexp">pf_buf2</span> <span class="keyword">|</span> 
+        sb<span class="keyword">,</span> pbuf + len1<span class="keyword">,</span> loff1_of_int1 <span class="keyword">(</span>0<span class="keyword">)</span><span class="keyword">,</span> len - len1<span class="keyword">,</span> pnblk'<span class="keyword">,</span> blksz<span class="keyword">,</span> accu<span class="keyword">,</span> err<span class="keyword">)</span>
+      <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> pf_buf := bytes_v_unsplit <span class="keyword">(</span>pf_buf1<span class="keyword">,</span> pf_buf2<span class="keyword">)</span></span>
+    <span class="keyword">in</span>
+      ret
+    <span class="keyword">end</span> <span class="keyword">else</span> accu
+  <span class="keyword">end</span>
+
+<span class="comment">// fun copy_phyblock_impl
+</span><span class="comment">//   {pinode:addr}
+</span><span class="comment">//   {pbuf: addr} 
+</span><span class="comment">//   {n: nat}
+</span><span class="comment">//   {ofs: nat}   // offset in cluster
+</span><span class="comment">//   {len: pos | len &lt;= n; ofs + len &lt;= blksz} (
+</span><span class="comment">//   pf_inode_r: !inode_own @ pinode,
+</span><span class="comment">//   pf_buf: !bytes(n) @ pbuf |
+</span><span class="comment">//   sb: &amp;super_block,
+</span><span class="comment">//   pbuf: $Basics.uptr pbuf,
+</span><span class="comment">//   ofs: loff_t (ofs),
+</span><span class="comment">//   len: size_t (len),
+</span><span class="comment">//   nblk: nblock,
+</span><span class="comment">//   err: &amp;errno_t 0 &gt;&gt; errno_t
+</span><span class="comment">//   ): #[len1:nat | len1 &lt;= len] size_t len1
+</span><span class="keyword">implement</span> copy_phyblock_impl
+  <span class="staexp"><span class="keyword">{</span>pinode<span class="keyword">}</span></span>
+  <span class="staexp"><span class="keyword">{</span>pbuf<span class="keyword">}</span></span> 
+  <span class="staexp"><span class="keyword">{</span>n<span class="keyword">}</span></span>
+  <span class="staexp"><span class="keyword">{</span>ofs<span class="keyword">}</span></span>   <span class="comment">// offset in cluster
+</span>  <span class="staexp"><span class="keyword">{</span>len<span class="keyword">}</span></span> <span class="keyword">(</span>
+  <span class="prfexp">pf_inode_r</span><span class="keyword">,</span>
+  <span class="prfexp">pf_buf</span> <span class="keyword">|</span>
+  sb<span class="keyword">,</span>
+  pbuf<span class="keyword">,</span>
+  ofs<span class="keyword">,</span>
+  len<span class="keyword">,</span>
+  nblk<span class="keyword">,</span>
+  err
+  <span class="keyword">)</span> <span class="keyword">=</span> <span class="keyword">let</span>
+  <span class="keyword">var</span> bh<span class="keyword">:</span> <span class="staexp">bufferheadptr <span class="keyword">(</span>null<span class="keyword">)</span> ?</span>
+  <span class="keyword">val</span> p <span class="keyword">=</span> sbread <span class="keyword">(</span>sb<span class="keyword">,</span> nblk<span class="keyword">,</span> bh<span class="keyword">)</span>
+<span class="keyword">in</span>
+  <span class="keyword">if</span> p <span class="keyword">&gt;</span> null <span class="keyword">then</span> <span class="keyword">let</span>
+    <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> opt_unsome <span class="keyword">(</span>bh<span class="keyword">)</span></span>
+    <span class="keyword">val</span> <span class="keyword">(</span><span class="prfexp">vo</span> <span class="keyword">|</span> pblock<span class="keyword">)</span> <span class="keyword">=</span> bufferheadptr_get_buf <span class="keyword">(</span>bh<span class="keyword">)</span>
+    <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span>pf<span class="keyword">,</span> fpf<span class="keyword">)</span> <span class="keyword">=</span> viewout_decode <span class="keyword">(</span>vo<span class="keyword">)</span></span>
+    
+ 
+    <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span>pf1<span class="keyword">,</span> pf2<span class="keyword">)</span> <span class="keyword">=</span> bytes_v_split <span class="staexp"><span class="keyword">{</span>blksz<span class="keyword">}</span></span><span class="staexp"><span class="keyword">{</span>ofs<span class="keyword">}</span></span> <span class="keyword">(</span>pf<span class="keyword">)</span></span>
+    <span class="keyword">val</span> nleft <span class="keyword">=</span> copy_to_user <span class="keyword">(</span><span class="prfexp">pf_buf</span> <span class="keyword">|</span> 
+      pbuf<span class="keyword">,</span> <span class="keyword">!</span><span class="keyword">(</span>pblock + int1_of_loff1 <span class="keyword">(</span>ofs<span class="keyword">)</span><span class="keyword">)</span><span class="keyword">,</span> ulint1_of_size1 <span class="keyword">(</span>len<span class="keyword">)</span><span class="keyword">)</span>
+    <span class="keyword">prval</span> <span class="prfexp">pf <span class="keyword">=</span> bytes_v_unsplit <span class="keyword">(</span>pf1<span class="keyword">,</span> pf2<span class="keyword">)</span></span>
+    <span class="keyword">val</span> <span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> err := <span class="keyword">(</span><span class="keyword">(</span><span class="keyword">if</span> size1_of_ulint1 <span class="keyword">(</span>nleft<span class="keyword">)</span> &lt;&gt; 0 <span class="keyword">then</span> EIO <span class="keyword">else</span> err<span class="keyword">)</span><span class="keyword">:</span> <span class="staexp"><span class="keyword">[</span>pe<span class="keyword">:</span> nat<span class="keyword">]</span> errno_t pe</span><span class="keyword">)</span>
+
+    <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> fpf <span class="keyword">(</span>pf<span class="keyword">)</span></span>
+    <span class="keyword">val</span> <span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> bufferheadptr_free <span class="keyword">(</span>bh<span class="keyword">)</span>
+  <span class="keyword">in</span>
+    len - size1_of_ulint1 <span class="keyword">(</span>nleft<span class="keyword">)</span>
+  <span class="keyword">end</span> <span class="keyword">else</span> <span class="keyword">let</span>
+    <span class="keyword">val</span> <span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> err := EIO
+    <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> opt_unnone <span class="keyword">(</span>bh<span class="keyword">)</span></span>
+  <span class="keyword">in</span>
+    size1_of_int1 <span class="keyword">(</span>0<span class="keyword">)</span>
+  <span class="keyword">end</span>
+<span class="keyword">end</span>
+
+<span class="comment">(*fun ncluster2block (sbi: &amp;fat_sb_info, n: ncluster CKnorm): nblock*)</span>
+<span class="keyword">implement</span> ncluster2block <span class="keyword">(</span>sbi<span class="keyword">,</span> n<span class="keyword">)</span> <span class="keyword">=</span> <span class="keyword">let</span>
+  <span class="keyword">val</span> k <span class="keyword">=</span> ulint_of_int <span class="keyword">(</span>n - <span class="keyword">(</span>FAT_START_ENT<span class="keyword">)</span><span class="keyword">)</span>  * 
+    ulint_of_usint <span class="keyword">(</span>sbi<span class="keyword">.</span>sec_per_clus<span class="keyword">)</span> + sbi<span class="keyword">.</span>data_start
+<span class="keyword">in</span>
+  nblock_of_ulint <span class="keyword">(</span>k<span class="keyword">)</span>
+<span class="keyword">end</span>
+
+<span class="comment">// fun get_nth_cluster {n:nat} (
+</span><span class="comment">//  cls: ncluster_norm, n: int n, n1: &amp;int? &gt;&gt; int n1
+</span><span class="comment">// ) : #[n1:nat | n1 &lt;= n] ncluster_norm
+</span><span class="keyword">implement</span> get_nth_cluster <span class="staexp"><span class="keyword">{</span>n<span class="keyword">}</span></span> <span class="keyword">(</span>sb<span class="keyword">,</span> cls<span class="keyword">,</span> n<span class="keyword">,</span> n1<span class="keyword">)</span> <span class="keyword">=</span> <span class="keyword">let</span>
+  <span class="keyword">fun</span> loop <span class="staexp"><span class="keyword">{</span>n<span class="keyword">,</span> n1<span class="keyword">:</span> nat<span class="keyword">}</span></span> <span class="keyword">(</span>sb<span class="keyword">:</span> <span class="staexp"><span class="keyword">&amp;</span>super_block</span><span class="keyword">,</span>
+    cls<span class="keyword">:</span> <span class="staexp">ncluster_norm</span><span class="keyword">,</span> n<span class="keyword">:</span> <span class="staexp">int n</span><span class="keyword">,</span> n1<span class="keyword">:</span> <span class="staexp"><span class="keyword">&amp;</span>int n1&gt;&gt; int n2</span>
+  <span class="keyword">)</span><span class="keyword">:</span> <span class="staexp"><span class="keyword">#[</span>n2<span class="keyword">:</span> nat <span class="keyword">|</span> n2 &gt;= n1<span class="keyword">;</span> n2 &lt;= n1 + n<span class="keyword">]</span> ncluster_norm</span> <span class="keyword">=</span>
+    <span class="keyword">if</span> n <span class="keyword">=</span> 0 <span class="keyword">then</span> cls
+    <span class="keyword">else</span> <span class="keyword">let</span>
+      <span class="keyword">var</span> nxt_cls<span class="keyword">:</span> <span class="staexp">ncluster?</span>
+      <span class="keyword">val</span> ret_err <span class="keyword">=</span> get_next_cluster <span class="keyword">(</span>sb<span class="keyword">,</span> cls<span class="keyword">,</span> nxt_cls<span class="keyword">)</span>
+    <span class="keyword">in</span>
+      <span class="keyword">if</span> int1_of_errno1 <span class="keyword">(</span>ret_err<span class="keyword">)</span> &lt;&gt; 0 <span class="keyword">then</span> <span class="keyword">let</span>
+        <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> opt_unnone <span class="staexp"><span class="keyword">{</span>ncluster_notbad<span class="keyword">}</span></span> <span class="keyword">(</span>nxt_cls<span class="keyword">)</span></span>
+      <span class="keyword">in</span>
+        cls
+      <span class="keyword">end</span> <span class="keyword">else</span> <span class="keyword">let</span>
+        <span class="keyword">prval</span> <span class="prfexp"><span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> opt_unsome <span class="staexp"><span class="keyword">{</span>ncluster_notbad<span class="keyword">}</span></span> <span class="keyword">(</span>nxt_cls<span class="keyword">)</span></span>
+      <span class="keyword">in</span>
+        <span class="keyword">if</span> nxt_cls <span class="keyword">=</span> FAT_ENT_FREE || nxt_cls <span class="keyword">=</span> FAT_ENT_EOF <span class="keyword">then</span> cls
+        <span class="keyword">else</span> <span class="keyword">let</span>
+          <span class="keyword">val</span> <span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> n1 := n1 + 1
+        <span class="keyword">in</span>
+          loop <span class="keyword">(</span>sb<span class="keyword">,</span> cls<span class="keyword">,</span> n - 1<span class="keyword">,</span> n1<span class="keyword">)</span>
+        <span class="keyword">end</span>
+      <span class="keyword">end</span>
+    <span class="keyword">end</span>
+
+  <span class="keyword">val</span> <span class="keyword">(</span><span class="keyword">)</span> <span class="keyword">=</span> n1 := 0
+<span class="keyword">in</span>
+  loop <span class="keyword">(</span>sb<span class="keyword">,</span> cls<span class="keyword">,</span> n<span class="keyword">,</span> n1<span class="keyword">)</span>
+<span class="keyword">end</span>
+
+       
+
+
+
+
+
+
+</pre>
+</body>
+</html>

@@ -67,6 +67,17 @@ endif
 # 
 ats_inode_dats.o: ats_fat_inode_dats.c
 
+.PHONY: html
+
+html: ats_fat_file_sats.html \
+	ats_fat_file_dats.html
+
+ats_fat_file_sats.html: ATS/ats_fat_file.sats
+	$(ATSOPT) --posmark_html -s $< >$@
+
+ats_fat_file_dats.html: ATS/ats_fat_file.dats
+	$(ATSOPT) --posmark_html -d $< >$@
+
 .PHONY: ats
 
 ats: ats_fat_inode_dats.c ats_fat_file_dats.c ats_msdos_inode_dats.c
@@ -94,6 +105,7 @@ atsclean:
 clean:
 	rm -f *~
 	rm -f *_?ats.c *_?ats.o
+	rm -f *_?ats.html
 	make -C /lib/modules/$(KVERS)/build M=$(PWD) clean
 
 

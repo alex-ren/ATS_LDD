@@ -1,0 +1,184 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <title></title>
+  <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+  <style type="text/css">
+    .atsyntax {color:#E80000;background-color:#E0E0E0}
+    .atsyntax span.comment {color:#787878;font-style:italic}
+    .atsyntax span.extern  {color:#A52A2A}
+    .atsyntax span.keyword {color:#000000;font-weight:bold}
+    .atsyntax span.neuexp  {color:#800080}
+    .atsyntax span.staexp  {color:#0000FF}
+    .atsyntax span.dynexp  {color:#E80000}
+    .atsyntax span.prfexp  {color:#009000}
+    .atsyntax span.stacstdec  {text-decoration:none}
+    .atsyntax span.stacstuse  {color:#0000CF;text-decoration:underline}
+    .atsyntax span.dyncstdec  {text-decoration:none}
+    .atsyntax span.dyncstimp  {color:#B80000;text-decoration:underline}
+    .atsyntax span.dyncstuse  {color:#B80000;text-decoration:underline}
+    body {color:#E80000;background-color:#E0E0E0}
+  </style>
+</head>
+<body>
+<pre class="atsyntax">
+<span class="comment">//
+</span><span class="comment">// Author: Zhiqiang Ren (aren AT cs DOT bu DOT edu)
+</span><span class="comment">// Time: April 6th., 2011
+</span><span class="comment">//
+</span><span class="comment">(* ****** ****** *)</span>
+
+<span class="keyword">#define</span> <span class="neuexp">ATS_STALOADFLAG 0</span>
+
+<span class="extern">%{#
+#include "ATS/ats_fat_file.cats"
+%}</span>  <span class="comment">// end of [%{#]
+</span>
+<span class="comment">(* ***************** ****************** *)</span>
+<span class="keyword">staload</span> <span class="staexp">UN <span class="keyword">=</span> "prelude/SATS/unsafe.sats"</span>
+<span class="keyword">staload</span> <span class="staexp">Basics <span class="keyword">=</span> "contrib/linux/basics.sats"</span>
+
+<span class="comment">(* ***************** ****************** *)</span>
+
+<span class="keyword">staload</span> <span class="staexp">AFT <span class="keyword">=</span> "ats_fs_types.sats"</span>
+
+<span class="comment">(* ***************** ****************** *)</span>
+
+<span class="comment">(*
+ssize_t
+ats_fat_sync_read(struct file *filp,
+ char __user *buf, size_t len, loff_t *ppos)
+{
+ return 0;
+}
+*)</span>
+<span class="comment">// ssize_t is defined in prelude/SATS/sizetype.sats
+</span><span class="keyword">fun</span> <a name="609"><span class="dyncstdec">fat_sync_read
+ <span class="staexp"><span class="keyword">{</span>l<span class="keyword">:</span>addr<span class="keyword">}</span></span>
+ <span class="staexp"><span class="keyword">{</span>n<span class="keyword">:</span>pos<span class="keyword">}</span></span> 
+ <span class="staexp"><span class="keyword">{</span>ofs<span class="keyword">:</span>nat<span class="keyword">}</span></span> <span class="keyword">(</span>
+ <span class="prfexp">pfbuf<span class="keyword">:</span> <span class="staexp"><span class="keyword">!</span>bytes<span class="keyword">(</span>n<span class="keyword">)</span> @ l</span></span> <span class="keyword">|</span>
+ file<span class="keyword">:</span> <span class="staexp"><span class="keyword">&amp;</span><span class="keyword">(</span>$AFT<span class="keyword">.</span>file<span class="keyword">)</span></span>
+<span class="keyword">,</span> p<span class="keyword">:</span> <span class="staexp">$Basics<span class="keyword">.</span>uptr l</span>
+<span class="keyword">,</span> n<span class="keyword">:</span> <span class="staexp">size_t <span class="keyword">(</span>n<span class="keyword">)</span></span>
+<span class="keyword">,</span> pos<span class="keyword">:</span> <span class="staexp"><span class="keyword">&amp;</span><span class="keyword">(</span>$AFT<span class="keyword">.</span>loff_t <span class="keyword">(</span>ofs<span class="keyword">)</span><span class="keyword">)</span> &gt;&gt; <span class="keyword">(</span>$AFT<span class="keyword">.</span>loff_t <span class="keyword">(</span>ofs + max<span class="keyword">(</span>0<span class="keyword">,</span>n1<span class="keyword">)</span><span class="keyword">)</span><span class="keyword">)</span></span>
+<span class="keyword">)</span> <span class="keyword">:</span> <span class="staexp"><span class="keyword">#[</span>n1<span class="keyword">:</span>int <span class="keyword">|</span> n1 &lt;= n<span class="keyword">]</span> ssize_t <span class="keyword">(</span>n1<span class="keyword">)</span></span></span></a> 
+  <span class="keyword">=</span> "atsfs_fat_sync_read"
+
+<span class="keyword">fun</span> <a name="868"><span class="dyncstdec">copy_clusters_impl
+  <span class="staexp"><span class="keyword">{</span>pinode<span class="keyword">:</span>addr<span class="keyword">}</span></span>
+  <span class="staexp"><span class="keyword">{</span>pbuf<span class="keyword">:</span> addr<span class="keyword">}</span></span> 
+  <span class="staexp"><span class="keyword">{</span>n<span class="keyword">:</span> nat<span class="keyword">}</span></span>
+  <span class="staexp"><span class="keyword">{</span>ofs<span class="keyword">:</span> nat <span class="keyword">|</span> ofs <span class="keyword">&lt;</span> $AFT<span class="keyword">.</span>clssz<span class="keyword">}</span></span>   <span class="comment">// offset in current cluster
+</span>  <span class="staexp"><span class="keyword">{</span>len<span class="keyword">:</span> pos <span class="keyword">|</span> len &lt;= n<span class="keyword">}</span></span>  <span class="comment">// total length to be copied
+</span>  <span class="staexp"><span class="keyword">{</span>accu<span class="keyword">:</span> nat<span class="keyword">}</span></span>
+  <span class="staexp"><span class="keyword">{</span>e<span class="keyword">:</span> nat<span class="keyword">}</span></span> <span class="keyword">(</span>
+  <span class="prfexp">pf_inode_r<span class="keyword">:</span> <span class="staexp"><span class="keyword">!</span><span class="keyword">(</span>$AFT<span class="keyword">.</span>inode_own<span class="keyword">)</span> @ pinode</span></span><span class="keyword">,</span>
+  <span class="prfexp">pf_buf<span class="keyword">:</span> <span class="staexp"><span class="keyword">!</span>bytes<span class="keyword">(</span>n<span class="keyword">)</span> @ pbuf</span></span> <span class="keyword">|</span>
+  sb<span class="keyword">:</span> <span class="staexp"><span class="keyword">&amp;</span><span class="keyword">(</span>$AFT<span class="keyword">.</span>super_block<span class="keyword">)</span></span><span class="keyword">,</span>
+  pbuf<span class="keyword">:</span> <span class="staexp">$Basics<span class="keyword">.</span>uptr pbuf</span><span class="keyword">,</span>
+  ofs<span class="keyword">:</span> <span class="staexp">$AFT<span class="keyword">.</span>loff_t <span class="keyword">(</span>ofs<span class="keyword">)</span></span><span class="keyword">,</span>
+  len<span class="keyword">:</span> <span class="staexp">size_t <span class="keyword">(</span>len<span class="keyword">)</span></span><span class="keyword">,</span>
+  ncls<span class="keyword">:</span> <span class="staexp">$AFT<span class="keyword">.</span>ncluster_norm</span><span class="keyword">,</span>
+  clssz<span class="keyword">:</span> <span class="staexp">size_t <span class="keyword">(</span>$AFT<span class="keyword">.</span>clssz<span class="keyword">)</span></span><span class="keyword">,</span>
+  accu<span class="keyword">:</span> <span class="staexp">size_t <span class="keyword">(</span>accu<span class="keyword">)</span></span><span class="keyword">,</span>
+  err<span class="keyword">:</span> <span class="staexp"><span class="keyword">&amp;</span><span class="keyword">(</span>$AFT<span class="keyword">.</span>errno_t e<span class="keyword">)</span> &gt;&gt; $AFT<span class="keyword">.</span>errno_t pe</span> <span class="comment">// last error
+</span>  <span class="keyword">)</span><span class="keyword">:</span> <span class="staexp"><span class="keyword">#[</span>accu'<span class="keyword">:</span> int <span class="keyword">|</span> accu' &gt;= accu<span class="keyword">;</span> accu' - accu &lt;= len<span class="keyword">]</span> <span class="keyword">#[</span>pe<span class="keyword">:</span> nat<span class="keyword">]</span>
+  <span class="keyword">(</span>$AFT<span class="keyword">.</span>error_ret <span class="keyword">(</span>e<span class="keyword">,</span> accu' - accu<span class="keyword">)</span> <span class="keyword">|</span> size_t <span class="keyword">(</span>accu'<span class="keyword">)</span><span class="keyword">)</span></span></span></a>
+
+<span class="keyword">fun</span> <a name="1511"><span class="dyncstdec">copy_cluster_impl
+  <span class="staexp"><span class="keyword">{</span>pinode<span class="keyword">:</span>addr<span class="keyword">}</span></span>
+  <span class="staexp"><span class="keyword">{</span>pbuf<span class="keyword">:</span> addr<span class="keyword">}</span></span> 
+  <span class="staexp"><span class="keyword">{</span>n<span class="keyword">:</span> nat<span class="keyword">}</span></span>
+  <span class="staexp"><span class="keyword">{</span>ofs<span class="keyword">:</span> nat<span class="keyword">}</span></span>   <span class="comment">// offset in cluster
+</span>  <span class="staexp"><span class="keyword">{</span>len<span class="keyword">:</span> pos <span class="keyword">|</span> len &lt;= n<span class="keyword">;</span> ofs + len &lt;= $AFT<span class="keyword">.</span>clssz<span class="keyword">}</span></span>
+  <span class="staexp"><span class="keyword">{</span>e<span class="keyword">:</span> nat<span class="keyword">}</span></span> <span class="keyword">(</span>
+  <span class="prfexp">pf_inode_r<span class="keyword">:</span> <span class="staexp"><span class="keyword">!</span><span class="keyword">(</span>$AFT<span class="keyword">.</span>inode_own<span class="keyword">)</span> @ pinode</span></span><span class="keyword">,</span>
+  <span class="prfexp">pf_buf<span class="keyword">:</span> <span class="staexp"><span class="keyword">!</span>bytes<span class="keyword">(</span>n<span class="keyword">)</span> @ pbuf</span></span> <span class="keyword">|</span>
+  sb<span class="keyword">:</span> <span class="staexp"><span class="keyword">&amp;</span><span class="keyword">(</span>$AFT<span class="keyword">.</span>super_block<span class="keyword">)</span></span><span class="keyword">,</span>
+  pbuf<span class="keyword">:</span> <span class="staexp">$Basics<span class="keyword">.</span>uptr pbuf</span><span class="keyword">,</span>
+  ofs<span class="keyword">:</span> <span class="staexp">$AFT<span class="keyword">.</span>loff_t <span class="keyword">(</span>ofs<span class="keyword">)</span></span><span class="keyword">,</span>
+  len<span class="keyword">:</span> <span class="staexp">size_t <span class="keyword">(</span>len<span class="keyword">)</span></span><span class="keyword">,</span>
+  ncls<span class="keyword">:</span> <span class="staexp">$AFT<span class="keyword">.</span>ncluster_valid</span><span class="keyword">,</span>
+  err<span class="keyword">:</span> <span class="staexp"><span class="keyword">&amp;</span><span class="keyword">(</span>$AFT<span class="keyword">.</span>errno_t e<span class="keyword">)</span> &gt;&gt; $AFT<span class="keyword">.</span>errno_t pe</span>
+  <span class="keyword">)</span><span class="keyword">:</span> <span class="staexp"><span class="keyword">#[</span>len1<span class="keyword">:</span>nat <span class="keyword">|</span> len1 &lt;= len<span class="keyword">]</span> <span class="keyword">#[</span>pe<span class="keyword">:</span> nat<span class="keyword">]</span> size_t len1</span></span></a>
+
+<span class="keyword">fun</span> <a name="1974"><span class="dyncstdec">copy_phyblocks_impl
+  <span class="staexp"><span class="keyword">{</span>pinode<span class="keyword">:</span>addr<span class="keyword">}</span></span>
+  <span class="staexp"><span class="keyword">{</span>pbuf<span class="keyword">:</span> addr<span class="keyword">}</span></span> 
+  <span class="staexp"><span class="keyword">{</span>n<span class="keyword">:</span> nat<span class="keyword">}</span></span>
+  <span class="staexp"><span class="keyword">{</span>ofs<span class="keyword">:</span> nat <span class="keyword">|</span> ofs <span class="keyword">&lt;</span> $AFT<span class="keyword">.</span>blksz<span class="keyword">}</span></span>   <span class="comment">// offset in current block
+</span>  <span class="staexp"><span class="keyword">{</span>len<span class="keyword">:</span> pos <span class="keyword">|</span> len &lt;= n<span class="keyword">}</span></span>  <span class="comment">// total length to be copied
+</span>  <span class="staexp"><span class="keyword">{</span>accu<span class="keyword">:</span> nat<span class="keyword">}</span></span> 
+  <span class="staexp"><span class="keyword">{</span>e<span class="keyword">:</span> nat<span class="keyword">}</span></span> <span class="keyword">(</span>
+  <span class="prfexp">pf_inode_r<span class="keyword">:</span> <span class="staexp"><span class="keyword">!</span><span class="keyword">(</span>$AFT<span class="keyword">.</span>inode_own<span class="keyword">)</span> @ pinode</span></span><span class="keyword">,</span>
+  <span class="prfexp">pf_buf<span class="keyword">:</span> <span class="staexp"><span class="keyword">!</span>bytes<span class="keyword">(</span>n<span class="keyword">)</span> @ pbuf</span></span> <span class="keyword">|</span>
+  sb<span class="keyword">:</span> <span class="staexp"><span class="keyword">&amp;</span><span class="keyword">(</span>$AFT<span class="keyword">.</span>super_block<span class="keyword">)</span></span><span class="keyword">,</span>
+  pbuf<span class="keyword">:</span> <span class="staexp">$Basics<span class="keyword">.</span>uptr pbuf</span><span class="keyword">,</span>
+  ofs<span class="keyword">:</span> <span class="staexp">$AFT<span class="keyword">.</span>loff_t <span class="keyword">(</span>ofs<span class="keyword">)</span></span><span class="keyword">,</span>
+  len<span class="keyword">:</span> <span class="staexp">size_t <span class="keyword">(</span>len<span class="keyword">)</span></span><span class="keyword">,</span>
+  pnblk<span class="keyword">:</span> <span class="staexp">$AFT<span class="keyword">.</span>nblock</span><span class="keyword">,</span>  <span class="comment">// starting number of physical block
+</span>  blksz<span class="keyword">:</span> <span class="staexp">size_t <span class="keyword">(</span>$AFT<span class="keyword">.</span>blksz<span class="keyword">)</span></span><span class="keyword">,</span>
+  accu<span class="keyword">:</span> <span class="staexp">size_t <span class="keyword">(</span>accu<span class="keyword">)</span></span><span class="keyword">,</span>
+  err<span class="keyword">:</span> <span class="staexp"><span class="keyword">&amp;</span><span class="keyword">(</span>$AFT<span class="keyword">.</span>errno_t<span class="keyword">)</span> e &gt;&gt; <span class="keyword">(</span>$AFT<span class="keyword">.</span>errno_t pe<span class="keyword">)</span></span>  <span class="comment">// last error
+</span>  <span class="keyword">)</span><span class="keyword">:</span> <span class="staexp"><span class="keyword">#[</span>accu'<span class="keyword">:</span> int <span class="keyword">|</span> accu' &gt;= accu<span class="keyword">;</span> accu' - accu &lt;= len<span class="keyword">]</span> <span class="keyword">#[</span>pe<span class="keyword">:</span> nat<span class="keyword">]</span> 
+  size_t <span class="keyword">(</span>accu'<span class="keyword">)</span></span></span></a>
+
+<span class="keyword">fun</span> <a name="2616"><span class="dyncstdec">copy_phyblock_impl
+  <span class="staexp"><span class="keyword">{</span>pinode<span class="keyword">:</span>addr<span class="keyword">}</span></span>
+  <span class="staexp"><span class="keyword">{</span>pbuf<span class="keyword">:</span> addr<span class="keyword">}</span></span> 
+  <span class="staexp"><span class="keyword">{</span>n<span class="keyword">:</span> nat<span class="keyword">}</span></span>
+  <span class="staexp"><span class="keyword">{</span>ofs<span class="keyword">:</span> nat<span class="keyword">}</span></span>   <span class="comment">// offset in cluster
+</span>  <span class="staexp"><span class="keyword">{</span>len<span class="keyword">:</span> pos <span class="keyword">|</span> len &lt;= n<span class="keyword">;</span> ofs + len &lt;= $AFT<span class="keyword">.</span>blksz<span class="keyword">}</span></span> <span class="keyword">(</span>
+  <span class="prfexp">pf_inode_r<span class="keyword">:</span> <span class="staexp"><span class="keyword">!</span><span class="keyword">(</span>$AFT<span class="keyword">.</span>inode_own<span class="keyword">)</span> @ pinode</span></span><span class="keyword">,</span>
+  <span class="prfexp">pf_buf<span class="keyword">:</span> <span class="staexp"><span class="keyword">!</span>bytes<span class="keyword">(</span>n<span class="keyword">)</span> @ pbuf</span></span> <span class="keyword">|</span>
+  sb<span class="keyword">:</span> <span class="staexp"><span class="keyword">&amp;</span><span class="keyword">(</span>$AFT<span class="keyword">.</span>super_block<span class="keyword">)</span></span><span class="keyword">,</span>
+  pbuf<span class="keyword">:</span> <span class="staexp">$Basics<span class="keyword">.</span>uptr pbuf</span><span class="keyword">,</span>
+  ofs<span class="keyword">:</span> <span class="staexp">$AFT<span class="keyword">.</span>loff_t <span class="keyword">(</span>ofs<span class="keyword">)</span></span><span class="keyword">,</span>
+  len<span class="keyword">:</span> <span class="staexp">size_t <span class="keyword">(</span>len<span class="keyword">)</span></span><span class="keyword">,</span>
+  nblk<span class="keyword">:</span> <span class="staexp">$AFT<span class="keyword">.</span>nblock</span><span class="keyword">,</span>
+  err<span class="keyword">:</span> <span class="staexp"><span class="keyword">&amp;</span><span class="keyword">(</span>$AFT<span class="keyword">.</span>errno_t 0<span class="keyword">)</span> &gt;&gt; $AFT<span class="keyword">.</span>errno_t pe</span>
+  <span class="keyword">)</span><span class="keyword">:</span> <span class="staexp"><span class="keyword">#[</span>len1<span class="keyword">:</span>nat <span class="keyword">|</span> len1 &lt;= len<span class="keyword">]</span> <span class="keyword">#[</span>pe<span class="keyword">:</span> nat<span class="keyword">]</span> size_t len1</span></span></a>
+
+<span class="comment">(* ***************** ****************** *)</span>
+<span class="keyword">fun</span> <a name="3104"><span class="dyncstdec">file2inode <span class="keyword">(</span>
+ file<span class="keyword">:</span> <span class="staexp"><span class="keyword">&amp;</span><span class="keyword">(</span>$AFT<span class="keyword">.</span>file<span class="keyword">)</span></span>
+<span class="keyword">)</span> <span class="keyword">:</span> <span class="staexp"><span class="keyword">[</span>l<span class="keyword">:</span>addr<span class="keyword">]</span> <span class="keyword">(</span>$UN<span class="keyword">.</span>viewout <span class="keyword">(</span>$AFT<span class="keyword">.</span>inode @ l<span class="keyword">)</span> <span class="keyword">|</span> ptr l<span class="keyword">)</span></span></span></a>
+ <span class="keyword">=</span> "mac#atsfs_file2inode"
+
+<span class="keyword">fun</span> <a name="3220"><span class="dyncstdec">file2inode_acquire <span class="keyword">(</span>
+ file<span class="keyword">:</span> <span class="staexp"><span class="keyword">&amp;</span> $AFT<span class="keyword">.</span>file</span>
+<span class="keyword">)</span> <span class="keyword">:</span> <span class="staexp"><span class="keyword">[</span>l<span class="keyword">:</span>addr<span class="keyword">]</span> <span class="keyword">(</span>$AFT<span class="keyword">.</span>inode_own @ l <span class="keyword">|</span> ptr l<span class="keyword">)</span></span></span></a>
+ <span class="keyword">=</span> "mac#atsfs_file2inode_acquire"
+
+<span class="keyword">fun</span> <a name="3341"><span class="dyncstdec">file2inode_release <span class="staexp"><span class="keyword">{</span>l<span class="keyword">:</span> addr<span class="keyword">}</span></span> <span class="keyword">(</span>
+ <span class="prfexp">pf<span class="keyword">:</span> <span class="staexp">$AFT<span class="keyword">.</span>inode_own @ l</span></span> <span class="keyword">|</span> p<span class="keyword">:</span> <span class="staexp">ptr l</span>
+<span class="keyword">)</span> <span class="keyword">:</span> <span class="staexp">void</span></span></a>
+ <span class="keyword">=</span> "mac#atsfs_file2inode_release"
+<span class="comment">(* ============================================= *)</span>
+
+<span class="keyword">fun</span> <a name="3507"><span class="dyncstdec">get_first_cluster
+ <span class="keyword">(</span>node<span class="keyword">:</span> <span class="staexp"><span class="keyword">&amp;</span> $AFT<span class="keyword">.</span>inode</span><span class="keyword">)</span><span class="keyword">:</span> <span class="staexp">$AFT<span class="keyword">.</span>ncluster_norm</span></span></a>  <span class="comment">// ncluster_valid
+</span><span class="keyword">=</span> "mac#atsfs_get_first_cluster"
+
+<span class="comment">(* cls: current physical cluster no. in the volume *)</span>
+<span class="comment">(* C code should guarantee to ruturn sth. not bad *)</span>
+<span class="keyword">fun</span> <a name="3730"><span class="dyncstdec">get_next_cluster
+ <span class="keyword">(</span>sb<span class="keyword">:</span> <span class="staexp"><span class="keyword">&amp;</span> $AFT<span class="keyword">.</span>super_block</span><span class="keyword">,</span> cur_cls<span class="keyword">:</span> <span class="staexp">$AFT<span class="keyword">.</span>ncluster_norm</span><span class="keyword">,</span> 
+  nxt_cls<span class="keyword">:</span> <span class="staexp"><span class="keyword">&amp;</span> $AFT<span class="keyword">.</span>ncluster? &gt;&gt; opt<span class="keyword">(</span>$AFT<span class="keyword">.</span>ncluster_notbad<span class="keyword">,</span> e == 0<span class="keyword">)</span></span><span class="keyword">)</span><span class="keyword">:</span> <span class="staexp"><span class="keyword">#[</span>e<span class="keyword">:</span> nat<span class="keyword">]</span> $AFT<span class="keyword">.</span>errno_t <span class="keyword">(</span>e<span class="keyword">)</span></span></span></a>
+<span class="keyword">=</span> "mac#atsfs_get_next_cluster"
+
+<span class="comment">(* cls: starting cluster *)</span>
+<span class="comment">(* n: steps *)</span>
+<span class="keyword">fun</span> <a name="3976"><span class="dyncstdec">get_nth_cluster <span class="staexp"><span class="keyword">{</span>n<span class="keyword">:</span>nat<span class="keyword">}</span></span> <span class="keyword">(</span>
+ sb<span class="keyword">:</span> <span class="staexp"><span class="keyword">&amp;</span> $AFT<span class="keyword">.</span>super_block</span><span class="keyword">,</span> cls<span class="keyword">:</span> <span class="staexp">$AFT<span class="keyword">.</span>ncluster_norm</span><span class="keyword">,</span> n<span class="keyword">:</span> <span class="staexp">int n</span><span class="keyword">,</span> n1<span class="keyword">:</span> <span class="staexp"><span class="keyword">&amp;</span>int? &gt;&gt; int n1</span>
+<span class="keyword">)</span> <span class="keyword">:</span> <span class="staexp"><span class="keyword">#[</span>n1<span class="keyword">:</span>nat <span class="keyword">|</span> n1 &lt;= n<span class="keyword">]</span> $AFT<span class="keyword">.</span>ncluster_norm</span></span></a>
+
+<span class="keyword">fun</span> <a name="4130"><span class="dyncstdec">ncluster2block <span class="keyword">(</span>sbi<span class="keyword">:</span> <span class="staexp"><span class="keyword">&amp;</span> $AFT<span class="keyword">.</span>fat_sb_info</span><span class="keyword">,</span> n<span class="keyword">:</span> <span class="staexp">$AFT<span class="keyword">.</span>ncluster_valid</span><span class="keyword">)</span><span class="keyword">:</span> <span class="staexp">$AFT<span class="keyword">.</span>nblock</span></span></a>
+
+<span class="comment">(* ***************** ****************** *)</span>
+
+</pre>
+</body>
+</html>
