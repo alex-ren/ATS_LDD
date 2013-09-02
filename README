@@ -1,3 +1,9 @@
+This place is linked by /scratch/aren/git/linux_source/linux-stable/fs/ATS_FAT
+
+You can also refer to the following Google Doc for information.
+https://docs.google.com/document/d/10ffVbn0ZOqHpr9LFFaWKANRoUbrkqBO5yLj13sb6pLc/edit#heading=h.8xpklf8pjhth
+
+
 -- How to create a file for loopback.
   >> dd if=/dev/zero of=/virtualfs bs=1024 count=307200
 
